@@ -4,6 +4,8 @@ import './App.css'
 function App() {
   const [language, setLanguage] = useState('ar')
   const [screen, setScreen] = useState('welcome')
+  const [specialtySearch, setSpecialtySearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [studentData, setStudentData] = useState({
     name: '',
     university: '',
@@ -70,6 +72,13 @@ function App() {
       specialties: 'التخصصات',
       sessions: 'جلسة',
       viewAll: 'عرض الكل',
+      allSpecialties: 'كل الأقسام',
+      searchSpecialty: 'ابحث عن قسم أو تخصص...',
+      noResults: 'ما فيه نتائج مطابقة',
+      expertsIn: 'الخبراء في',
+      bookSession: 'احجز جلسة',
+      noExpertsYet: 'ما فيه خبراء مسجلين بهذا المجال بعد',
+      requiredFieldsMissing: 'الرجاء تعبئة الاسم على الأقل قبل المتابعة',
     },
     en: {
       appName: 'Wajehni',
@@ -113,23 +122,42 @@ function App() {
       specialties: 'Specialties',
       sessions: 'sessions',
       viewAll: 'View all',
+      allSpecialties: 'All Categories',
+      searchSpecialty: 'Search a category or specialty...',
+      noResults: 'No matching results',
+      expertsIn: 'Experts in',
+      bookSession: 'Book a session',
+      noExpertsYet: 'No experts registered in this field yet',
+      requiredFieldsMissing: 'Please fill in at least your name before continuing',
     },
   }
 
   const t = text[language]
 
   const mockExperts = [
-    { name: 'سارة العتيبي', field: 'إدارة الأعمال', rating: 4.9, sessions: 32 },
-    { name: 'محمد القحطاني', field: 'هندسة برمجيات', rating: 4.8, sessions: 45 },
-    { name: 'نورة الحربي', field: 'تسويق رقمي', rating: 4.7, sessions: 28 },
+    { name: 'أبو داحم', field: 'إدارة الأعمال', rating: 4.9, sessions: 32 },
+    { name: 'الحب أبو خلود', field: 'هندسة برمجيات', rating: 4.8, sessions: 45 },
+    { name: 'الحب حصحص', field: 'تسويق رقمي', rating: 4.7, sessions: 28 },
   ]
 
-  const mockSpecialties = [
-    { name: 'إدارة الأعمال', icon: 'ti-briefcase' },
-    { name: 'هندسة البرمجيات', icon: 'ti-code' },
-    { name: 'أمن سيبراني', icon: 'ti-shield-lock' },
-    { name: 'تحليل بيانات', icon: 'ti-chart-bar' },
+  const categories = [
+    { icon: 'ti-device-laptop', name: language === 'ar' ? 'حاسب وتقنية معلومات' : 'Computer & IT' },
+    { icon: 'ti-settings', name: language === 'ar' ? 'الهندسة' : 'Engineering' },
+    { icon: 'ti-briefcase', name: language === 'ar' ? 'إدارة وأعمال' : 'Business & Management' },
+    { icon: 'ti-stethoscope', name: language === 'ar' ? 'طب وصحة' : 'Medical & Health' },
+    { icon: 'ti-scale', name: language === 'ar' ? 'قانون' : 'Law' },
+    { icon: 'ti-palette', name: language === 'ar' ? 'إعلام وتصميم' : 'Media & Design' },
+    { icon: 'ti-school', name: language === 'ar' ? 'تعليم وتدريب' : 'Education & Training' },
+    { icon: 'ti-users-group', name: language === 'ar' ? 'علوم اجتماعية وإنسانية' : 'Social Sciences' },
+    { icon: 'ti-flask', name: language === 'ar' ? 'علوم طبيعية' : 'Natural Sciences' },
+    { icon: 'ti-plane', name: language === 'ar' ? 'سياحة وضيافة' : 'Tourism & Hospitality' },
   ]
+
+  const filteredCategories = categories.filter((cat) =>
+    cat.name.toLowerCase().includes(specialtySearch.toLowerCase())
+  )
+
+  const expertsForCategory = selectedCategory ? mockExperts : []
 
   const handleStudentChange = (field, value) => {
     setStudentData({ ...studentData, [field]: value })
@@ -154,6 +182,22 @@ function App() {
     } else {
       alert(t.wrongCode)
     }
+  }
+
+  const handleStudentContinue = () => {
+    if (!studentData.name.trim() || !studentData.university.trim() || !studentData.major.trim()) {
+      alert(t.requiredFieldsMissing)
+      return
+    }
+    setScreen('home')
+  }
+
+  const handleExpertContinue = () => {
+    if (!expertData.name.trim() || !expertData.company.trim() || !expertData.jobTitle.trim()) {
+      alert(t.requiredFieldsMissing)
+      return
+    }
+    setScreen('pending')
   }
 
   return (
@@ -317,7 +361,7 @@ function App() {
               </label>
             </div>
 
-            <button className="btn-primary full-width" onClick={() => setScreen('home')}>
+            <button className="btn-primary full-width" onClick={handleStudentContinue}>
               {t.continue}
             </button>
           </div>
@@ -439,7 +483,7 @@ function App() {
               <i className="ti ti-info-circle"></i> {t.reviewNote}
             </p>
 
-            <button className="btn-primary full-width" onClick={() => setScreen('pending')}>
+            <button className="btn-primary full-width" onClick={handleExpertContinue}>
               {t.continue}
             </button>
           </div>
@@ -493,17 +537,113 @@ function App() {
           <div className="home-section">
             <div className="home-section-title">
               <h3>{t.specialties}</h3>
-              <span>{t.viewAll}</span>
+              <span
+                onClick={() => {
+                  setSpecialtySearch('')
+                  setScreen('allSpecialties')
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                {t.viewAll}
+              </span>
             </div>
-            <div className="specialties-grid">
-              {mockSpecialties.map((sp, i) => (
-                <div className="specialty-card" key={i}>
-                  <i className={`ti ${sp.icon}`}></i>
-                  <span>{sp.name}</span>
+            <div className="category-list">
+              {categories.slice(0, 4).map((cat, i) => (
+                <div
+                  className="category-row"
+                  key={i}
+                  onClick={() => {
+                    setSelectedCategory(cat)
+                    setScreen('categoryDetail')
+                  }}
+                >
+                  <div className="category-row-left">
+                    <div className="category-row-icon">
+                      <i className={`ti ${cat.icon}`}></i>
+                    </div>
+                    <span>{cat.name}</span>
+                  </div>
+                  <i className="ti ti-chevron-left category-row-arrow"></i>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {screen === 'allSpecialties' && (
+        <div className="all-specialties-screen">
+          <button className="back-btn" onClick={() => setScreen('home')}>
+            <i className="ti ti-arrow-right"></i> {t.back}
+          </button>
+
+          <h2>{t.allSpecialties}</h2>
+
+          <div className="search-box">
+            <i className="ti ti-search"></i>
+            <input
+              type="text"
+              placeholder={t.searchSpecialty}
+              value={specialtySearch}
+              onChange={(e) => setSpecialtySearch(e.target.value)}
+            />
+          </div>
+
+          {filteredCategories.length > 0 ? (
+            <div className="category-list">
+              {filteredCategories.map((cat, i) => (
+                <div
+                  className="category-row"
+                  key={i}
+                  onClick={() => {
+                    setSelectedCategory(cat)
+                    setScreen('categoryDetail')
+                  }}
+                >
+                  <div className="category-row-left">
+                    <div className="category-row-icon">
+                      <i className={`ti ${cat.icon}`}></i>
+                    </div>
+                    <span>{cat.name}</span>
+                  </div>
+                  <i className="ti ti-chevron-left category-row-arrow"></i>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-results">{t.noResults}</p>
+          )}
+        </div>
+      )}
+
+      {screen === 'categoryDetail' && selectedCategory && (
+        <div className="all-specialties-screen">
+          <button className="back-btn" onClick={() => setScreen('allSpecialties')}>
+            <i className="ti ti-arrow-right"></i> {t.back}
+          </button>
+
+          <h2>{t.expertsIn} {selectedCategory.name}</h2>
+
+          {expertsForCategory.length > 0 ? (
+            <div className="experts-grid">
+              {expertsForCategory.map((exp, i) => (
+                <div className="expert-card" key={i}>
+                  <div className="expert-avatar">
+                    <i className="ti ti-user"></i>
+                  </div>
+                  <h4>{exp.name}</h4>
+                  <p className="expert-field">{exp.field}</p>
+                  <div className="expert-meta">
+                    <span><i className="ti ti-star-filled"></i> {exp.rating}</span>
+                    <span>{exp.sessions} {t.sessions}</span>
+                  </div>
+                  <button className="btn-primary full-width small">{t.bookSession}</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-results">{t.noExpertsYet}</p>
+          )}
         </div>
       )}
 
