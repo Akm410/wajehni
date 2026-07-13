@@ -4,13 +4,13 @@ import './App.css'
 function App() {
   const [language, setLanguage] = useState('ar')
   const [screen, setScreen] = useState('welcome')
-  const [userType, setUserType] = useState('student')
   const [studentData, setStudentData] = useState({
     name: '',
     university: '',
     major: '',
     gradYear: '',
     city: '',
+    phone: '',
   })
   const [expertData, setExpertData] = useState({
     name: '',
@@ -19,7 +19,13 @@ function App() {
     experience: '',
     field: '',
     bio: '',
+    phone: '',
   })
+  const [otpCode, setOtpCode] = useState('')
+  const [otpInput, setOtpInput] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [otpFor, setOtpFor] = useState('')
 
   const text = {
     ar: {
@@ -28,18 +34,15 @@ function App() {
       login: 'تسجيل الدخول',
       signup: 'إنشاء حساب',
       chooseType: 'اختر نوع حسابك',
-      student: 'طالب',
-      graduate: 'حديث تخرج',
+      seeker: 'باحث عن فرصة',
       expert: 'خبير',
       back: 'رجوع',
-      studentFormTitle: 'بيانات الطالب',
-      graduateFormTitle: 'بيانات حديث التخرج',
+      seekerFormTitle: 'بيانات باحث عن فرصة',
       expertFormTitle: 'بيانات الخبير',
       name: 'الاسم الكامل',
       university: 'الجامعة',
       major: 'التخصص',
-      gradYearExpected: 'سنة التخرج المتوقعة',
-      gradYearActual: 'سنة التخرج',
+      gradYear: 'سنة التخرج',
       city: 'المدينة',
       uploadCV: 'رفع السيرة الذاتية (اختياري)',
       chooseFile: 'اختر ملف',
@@ -51,11 +54,22 @@ function App() {
       bio: 'نبذة عنك',
       uploadProof: 'إثبات العمل (شهادة، هوية عمل، إلخ)',
       reviewNote: 'حسابك بيتراجع من الإدارة قبل ما يصير فعّال للجمهور',
-      welcomeUser: 'مرحباً',
-      homeMessage: 'حسابك جاهز، هذي صفحتك الرئيسية',
       pendingTitle: 'حسابك تحت المراجعة',
       pendingMessage: 'شكراً لتسجيلك! فريقنا يراجع بياناتك الحين، بيوصلك إشعار بالموافقة خلال 24-48 ساعة.',
       backHome: 'رجوع للرئيسية',
+      phone: 'رقم الجوال',
+      sendCode: 'إرسال الكود',
+      otpSentMessage: 'تم إرسال كود التحقق إلى رقمك (وضع تجريبي، الكود ظاهر تحت)',
+      demoCode: 'الكود التجريبي',
+      enterCode: 'أدخل الكود المكوّن من 4 أرقام',
+      verify: 'تحقق',
+      verified: 'تم التحقق ✓',
+      wrongCode: 'الكود غير صحيح، حاول مرة أخرى',
+      registeredSuccess: 'سجلت حسابك بنجاح!',
+      topExperts: 'أفضل الخبراء',
+      specialties: 'التخصصات',
+      sessions: 'جلسة',
+      viewAll: 'عرض الكل',
     },
     en: {
       appName: 'Wajehni',
@@ -63,18 +77,15 @@ function App() {
       login: 'Login',
       signup: 'Sign Up',
       chooseType: 'Choose your account type',
-      student: 'Student',
-      graduate: 'Recent Graduate',
+      seeker: 'Opportunity Seeker',
       expert: 'Expert',
       back: 'Back',
-      studentFormTitle: 'Student Information',
-      graduateFormTitle: 'Graduate Information',
+      seekerFormTitle: 'Opportunity Seeker Information',
       expertFormTitle: 'Expert Information',
       name: 'Full Name',
       university: 'University',
       major: 'Major',
-      gradYearExpected: 'Expected Graduation Year',
-      gradYearActual: 'Graduation Year',
+      gradYear: 'Graduation Year',
       city: 'City',
       uploadCV: 'Upload CV (optional)',
       chooseFile: 'Choose file',
@@ -86,15 +97,39 @@ function App() {
       bio: 'About You',
       uploadProof: 'Proof of employment (certificate, work ID, etc.)',
       reviewNote: 'Your account will be reviewed by the admin before going live',
-      welcomeUser: 'Welcome',
-      homeMessage: 'Your account is ready, this is your homepage',
       pendingTitle: 'Your account is under review',
       pendingMessage: 'Thanks for signing up! Our team is reviewing your details. You will be notified within 24-48 hours.',
       backHome: 'Back to home',
+      phone: 'Phone Number',
+      sendCode: 'Send Code',
+      otpSentMessage: 'A verification code has been sent (demo mode, code shown below)',
+      demoCode: 'Demo Code',
+      enterCode: 'Enter the 4-digit code',
+      verify: 'Verify',
+      verified: 'Verified ✓',
+      wrongCode: 'Incorrect code, try again',
+      registeredSuccess: 'Account created successfully!',
+      topExperts: 'Top Experts',
+      specialties: 'Specialties',
+      sessions: 'sessions',
+      viewAll: 'View all',
     },
   }
 
   const t = text[language]
+
+  const mockExperts = [
+    { name: 'سارة العتيبي', field: 'إدارة الأعمال', rating: 4.9, sessions: 32 },
+    { name: 'محمد القحطاني', field: 'هندسة برمجيات', rating: 4.8, sessions: 45 },
+    { name: 'نورة الحربي', field: 'تسويق رقمي', rating: 4.7, sessions: 28 },
+  ]
+
+  const mockSpecialties = [
+    { name: 'إدارة الأعمال', icon: 'ti-briefcase' },
+    { name: 'هندسة البرمجيات', icon: 'ti-code' },
+    { name: 'أمن سيبراني', icon: 'ti-shield-lock' },
+    { name: 'تحليل بيانات', icon: 'ti-chart-bar' },
+  ]
 
   const handleStudentChange = (field, value) => {
     setStudentData({ ...studentData, [field]: value })
@@ -104,9 +139,21 @@ function App() {
     setExpertData({ ...expertData, [field]: value })
   }
 
-  const openStudentForm = (type) => {
-    setUserType(type)
-    setScreen('studentForm')
+  const generateOtp = (forWhich) => {
+    const code = Math.floor(1000 + Math.random() * 9000).toString()
+    setOtpCode(code)
+    setOtpSent(true)
+    setOtpVerified(false)
+    setOtpInput('')
+    setOtpFor(forWhich)
+  }
+
+  const checkOtp = () => {
+    if (otpInput === otpCode) {
+      setOtpVerified(true)
+    } else {
+      alert(t.wrongCode)
+    }
   }
 
   return (
@@ -156,13 +203,9 @@ function App() {
           <h2>{t.chooseType}</h2>
 
           <div className="type-cards">
-            <button className="type-card" onClick={() => openStudentForm('student')}>
-              <i className="ti ti-school"></i>
-              <span>{t.student}</span>
-            </button>
-            <button className="type-card" onClick={() => openStudentForm('graduate')}>
+            <button className="type-card" onClick={() => setScreen('studentForm')}>
               <i className="ti ti-briefcase"></i>
-              <span>{t.graduate}</span>
+              <span>{t.seeker}</span>
             </button>
             <button className="type-card" onClick={() => setScreen('expertForm')}>
               <i className="ti ti-star"></i>
@@ -178,7 +221,7 @@ function App() {
             <i className="ti ti-arrow-right"></i> {t.back}
           </button>
 
-          <h2>{userType === 'graduate' ? t.graduateFormTitle : t.studentFormTitle}</h2>
+          <h2>{t.seekerFormTitle}</h2>
 
           <div className="form-fields">
             <div className="form-group">
@@ -209,9 +252,7 @@ function App() {
             </div>
 
             <div className="form-group">
-              <label>
-                {userType === 'graduate' ? t.gradYearActual : t.gradYearExpected}
-              </label>
+              <label>{t.gradYear}</label>
               <input
                 type="text"
                 value={studentData.gradYear}
@@ -227,6 +268,46 @@ function App() {
                 onChange={(e) => handleStudentChange('city', e.target.value)}
               />
             </div>
+
+            <div className="form-group">
+              <label>{t.phone}</label>
+              <div className="phone-row">
+                <input
+                  type="text"
+                  placeholder="05XXXXXXXX"
+                  value={studentData.phone}
+                  onChange={(e) => handleStudentChange('phone', e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-otp"
+                  onClick={() => generateOtp('student')}
+                >
+                  {t.sendCode}
+                </button>
+              </div>
+            </div>
+
+            {otpSent && otpFor === 'student' && (
+              <div className="otp-box">
+                <p className="otp-hint">
+                  {t.otpSentMessage} — {t.demoCode}: <b>{otpCode}</b>
+                </p>
+                <div className="phone-row">
+                  <input
+                    type="text"
+                    maxLength="4"
+                    placeholder={t.enterCode}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value)}
+                  />
+                  <button type="button" className="btn-otp" onClick={checkOtp}>
+                    {t.verify}
+                  </button>
+                </div>
+                {otpVerified && <p className="otp-success">{t.verified}</p>}
+              </div>
+            )}
 
             <div className="form-group">
               <label>{t.uploadCV}</label>
@@ -307,6 +388,46 @@ function App() {
             </div>
 
             <div className="form-group">
+              <label>{t.phone}</label>
+              <div className="phone-row">
+                <input
+                  type="text"
+                  placeholder="05XXXXXXXX"
+                  value={expertData.phone}
+                  onChange={(e) => handleExpertChange('phone', e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-otp"
+                  onClick={() => generateOtp('expert')}
+                >
+                  {t.sendCode}
+                </button>
+              </div>
+            </div>
+
+            {otpSent && otpFor === 'expert' && (
+              <div className="otp-box">
+                <p className="otp-hint">
+                  {t.otpSentMessage} — {t.demoCode}: <b>{otpCode}</b>
+                </p>
+                <div className="phone-row">
+                  <input
+                    type="text"
+                    maxLength="4"
+                    placeholder={t.enterCode}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value)}
+                  />
+                  <button type="button" className="btn-otp" onClick={checkOtp}>
+                    {t.verify}
+                  </button>
+                </div>
+                {otpVerified && <p className="otp-success">{t.verified}</p>}
+              </div>
+            )}
+
+            <div className="form-group">
               <label>{t.uploadProof}</label>
               <label className="file-upload">
                 <i className="ti ti-upload"></i> {t.chooseFile}
@@ -339,12 +460,50 @@ function App() {
       )}
 
       {screen === 'home' && (
-        <div className="home-screen">
-          <div className="pending-icon">
-            <i className="ti ti-circle-check"></i>
+        <div className="home-page">
+          <div className="home-header">
+            <div className="pending-icon small">
+              <i className="ti ti-circle-check"></i>
+            </div>
+            <h2>{t.registeredSuccess}</h2>
           </div>
-          <h2>{t.welcomeUser}، {studentData.name || '👋'}</h2>
-          <p>{t.homeMessage}</p>
+
+          <div className="home-section">
+            <div className="home-section-title">
+              <h3>{t.topExperts}</h3>
+              <span>{t.viewAll}</span>
+            </div>
+            <div className="experts-grid">
+              {mockExperts.map((exp, i) => (
+                <div className="expert-card" key={i}>
+                  <div className="expert-avatar">
+                    <i className="ti ti-user"></i>
+                  </div>
+                  <h4>{exp.name}</h4>
+                  <p className="expert-field">{exp.field}</p>
+                  <div className="expert-meta">
+                    <span><i className="ti ti-star-filled"></i> {exp.rating}</span>
+                    <span>{exp.sessions} {t.sessions}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="home-section">
+            <div className="home-section-title">
+              <h3>{t.specialties}</h3>
+              <span>{t.viewAll}</span>
+            </div>
+            <div className="specialties-grid">
+              {mockSpecialties.map((sp, i) => (
+                <div className="specialty-card" key={i}>
+                  <i className={`ti ${sp.icon}`}></i>
+                  <span>{sp.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
