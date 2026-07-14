@@ -1,18 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
+import {
+  auth,
+  actionCodeSettings,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+} from './firebase'
 
 function App() {
   const [language, setLanguage] = useState('ar')
   const [screen, setScreen] = useState('welcome')
   const [specialtySearch, setSpecialtySearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
+
+  const [studentVerified, setStudentVerified] = useState(false)
+  const [studentLinkSent, setStudentLinkSent] = useState(false)
+  const [expertVerified, setExpertVerified] = useState(false)
+  const [expertLinkSent, setExpertLinkSent] = useState(false)
+
   const [studentData, setStudentData] = useState({
     name: '',
     university: '',
     major: '',
     gradYear: '',
-    city: '',
-    phone: '',
+    email: '',
   })
   const [expertData, setExpertData] = useState({
     name: '',
@@ -21,18 +33,21 @@ function App() {
     experience: '',
     field: '',
     bio: '',
-    phone: '',
+    email: '',
   })
-  const [otpCode, setOtpCode] = useState('')
-  const [otpInput, setOtpInput] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpVerified, setOtpVerified] = useState(false)
-  const [otpFor, setOtpFor] = useState('')
 
   const text = {
     ar: {
       appName: 'وجهني',
       tagline: 'تواصل مع خبراء مجالك',
+      heroTitle: 'اسأل من سبقك، وخذ خطوتك بثقة',
+      heroDescription: 'تواصل مع خبراء حقيقيين في مجالك، واستفد من خبرتهم في الوظائف والمقابلات وتطوير مسارك المهني.',
+      findExpert: 'ابحث عن خبير',
+      joinAsExpert: 'انضم كخبير',
+      haveAccount: 'لديك حساب؟',
+      trust1: 'خبراء موثّقون',
+      trust2: 'حجز سهل وآمن',
+      trust3: 'جلسات أونلاين مرنة',
       login: 'تسجيل الدخول',
       signup: 'إنشاء حساب',
       chooseType: 'اختر نوع حسابك',
@@ -43,9 +58,8 @@ function App() {
       expertFormTitle: 'بيانات الخبير',
       name: 'الاسم الكامل',
       university: 'الجامعة',
-      major: 'التخصص',
+      major: 'التخصص / مجال العمل',
       gradYear: 'سنة التخرج',
-      city: 'المدينة',
       uploadCV: 'رفع السيرة الذاتية (اختياري)',
       chooseFile: 'اختر ملف',
       continue: 'متابعة',
@@ -59,14 +73,16 @@ function App() {
       pendingTitle: 'حسابك تحت المراجعة',
       pendingMessage: 'شكراً لتسجيلك! فريقنا يراجع بياناتك الحين، بيوصلك إشعار بالموافقة خلال 24-48 ساعة.',
       backHome: 'رجوع للرئيسية',
-      phone: 'رقم الجوال',
-      sendCode: 'إرسال الكود',
-      otpSentMessage: 'تم إرسال كود التحقق إلى رقمك (وضع تجريبي، الكود ظاهر تحت)',
-      demoCode: 'الكود التجريبي',
-      enterCode: 'أدخل الكود المكوّن من 4 أرقام',
-      verify: 'تحقق',
-      verified: 'تم التحقق ✓',
-      wrongCode: 'الكود غير صحيح، حاول مرة أخرى',
+      email: 'البريد الإلكتروني',
+      emailPlaceholder: 'example@email.com',
+      sendVerificationLink: 'إرسال رابط التحقق',
+      resendLink: 'إعادة الإرسال',
+      sending: 'جاري الإرسال...',
+      checkEmailMessage: 'افتح بريدك الإلكتروني واضغط على رابط التحقق. بعد الضغط بيرجع لك هذا التاب ويكمل تلقائياً.',
+      emailVerifiedMsg: 'تم التحقق من بريدك ✓',
+      verifyEmailFirst: 'الرجاء إرسال رابط التحقق والضغط عليه من بريدك قبل المتابعة',
+      invalidEmailFormat: 'صيغة البريد الإلكتروني غير صحيحة',
+      linkErrorMessage: 'صار خطأ أثناء التحقق، جرب ترسل الرابط مرة ثانية',
       registeredSuccess: 'سجلت حسابك بنجاح!',
       topExperts: 'أفضل الخبراء',
       specialties: 'التخصصات',
@@ -83,6 +99,14 @@ function App() {
     en: {
       appName: 'Wajehni',
       tagline: 'Connect with experts in your field',
+      heroTitle: 'Learn from those who came before you, and take your next step with confidence',
+      heroDescription: 'Connect with real experts in your field and benefit from their experience in jobs, interviews, and career growth.',
+      findExpert: 'Find an Expert',
+      joinAsExpert: 'Join as an Expert',
+      haveAccount: 'Already have an account?',
+      trust1: 'Verified Experts',
+      trust2: 'Easy & Secure Booking',
+      trust3: 'Flexible Online Sessions',
       login: 'Login',
       signup: 'Sign Up',
       chooseType: 'Choose your account type',
@@ -93,9 +117,8 @@ function App() {
       expertFormTitle: 'Expert Information',
       name: 'Full Name',
       university: 'University',
-      major: 'Major',
+      major: 'Major / Field of Work',
       gradYear: 'Graduation Year',
-      city: 'City',
       uploadCV: 'Upload CV (optional)',
       chooseFile: 'Choose file',
       continue: 'Continue',
@@ -109,14 +132,16 @@ function App() {
       pendingTitle: 'Your account is under review',
       pendingMessage: 'Thanks for signing up! Our team is reviewing your details. You will be notified within 24-48 hours.',
       backHome: 'Back to home',
-      phone: 'Phone Number',
-      sendCode: 'Send Code',
-      otpSentMessage: 'A verification code has been sent (demo mode, code shown below)',
-      demoCode: 'Demo Code',
-      enterCode: 'Enter the 4-digit code',
-      verify: 'Verify',
-      verified: 'Verified ✓',
-      wrongCode: 'Incorrect code, try again',
+      email: 'Email',
+      emailPlaceholder: 'example@email.com',
+      sendVerificationLink: 'Send Verification Link',
+      resendLink: 'Resend',
+      sending: 'Sending...',
+      checkEmailMessage: 'Open your email and click the verification link. This tab will finish automatically once you do.',
+      emailVerifiedMsg: 'Email verified ✓',
+      verifyEmailFirst: 'Please send and click the verification link before continuing',
+      invalidEmailFormat: 'Invalid email format',
+      linkErrorMessage: 'Something went wrong verifying your email, try sending the link again',
       registeredSuccess: 'Account created successfully!',
       topExperts: 'Top Experts',
       specialties: 'Specialties',
@@ -153,6 +178,8 @@ function App() {
     { icon: 'ti-plane', name: language === 'ar' ? 'سياحة وضيافة' : 'Tourism & Hospitality' },
   ]
 
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
   const filteredCategories = categories.filter((cat) =>
     cat.name.toLowerCase().includes(specialtySearch.toLowerCase())
   )
@@ -167,26 +194,78 @@ function App() {
     setExpertData({ ...expertData, [field]: value })
   }
 
-  const generateOtp = (forWhich) => {
-    const code = Math.floor(1000 + Math.random() * 9000).toString()
-    setOtpCode(code)
-    setOtpSent(true)
-    setOtpVerified(false)
-    setOtpInput('')
-    setOtpFor(forWhich)
-  }
+  // إرسال رابط التحقق الحقيقي عبر Firebase
+  const sendVerificationEmail = async (formType) => {
+    const email = formType === 'student' ? studentData.email : expertData.email
 
-  const checkOtp = () => {
-    if (otpInput === otpCode) {
-      setOtpVerified(true)
-    } else {
-      alert(t.wrongCode)
+    if (!isValidEmail(email)) {
+      alert(t.invalidEmailFormat)
+      return
+    }
+
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
+      localStorage.setItem('emailForSignIn', email)
+      localStorage.setItem('signupType', formType)
+      localStorage.setItem(
+        'formDraft',
+        JSON.stringify(formType === 'student' ? studentData : expertData)
+      )
+      if (formType === 'student') {
+        setStudentLinkSent(true)
+      } else {
+        setExpertLinkSent(true)
+      }
+    } catch (err) {
+      console.error(err)
+      alert(t.linkErrorMessage)
     }
   }
+
+  // عند فتح الرابط اللي وصل بالإيميل، نكمل التحقق تلقائياً
+  useEffect(() => {
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      let email = localStorage.getItem('emailForSignIn')
+      if (!email) {
+        email = window.prompt(t.email)
+      }
+
+      signInWithEmailLink(auth, email, window.location.href)
+        .then(() => {
+          const type = localStorage.getItem('signupType')
+          const draftRaw = localStorage.getItem('formDraft')
+          const draft = draftRaw ? JSON.parse(draftRaw) : null
+
+          if (type === 'student') {
+            setStudentData((prev) => ({ ...(draft || prev), email }))
+            setStudentVerified(true)
+            setScreen('studentForm')
+          } else if (type === 'expert') {
+            setExpertData((prev) => ({ ...(draft || prev), email }))
+            setExpertVerified(true)
+            setScreen('expertForm')
+          }
+
+          localStorage.removeItem('emailForSignIn')
+          localStorage.removeItem('signupType')
+          localStorage.removeItem('formDraft')
+          window.history.replaceState({}, document.title, window.location.pathname)
+        })
+        .catch((err) => {
+          console.error(err)
+          alert(t.linkErrorMessage)
+        })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleStudentContinue = () => {
     if (!studentData.name.trim() || !studentData.university.trim() || !studentData.major.trim()) {
       alert(t.requiredFieldsMissing)
+      return
+    }
+    if (!studentVerified) {
+      alert(t.verifyEmailFirst)
       return
     }
     setScreen('home')
@@ -195,6 +274,10 @@ function App() {
   const handleExpertContinue = () => {
     if (!expertData.name.trim() || !expertData.company.trim() || !expertData.jobTitle.trim()) {
       alert(t.requiredFieldsMissing)
+      return
+    }
+    if (!expertVerified) {
+      alert(t.verifyEmailFirst)
       return
     }
     setScreen('pending')
@@ -218,50 +301,63 @@ function App() {
       </div>
 
       {screen === 'welcome' && (
-        <div className="welcome-screen">
-          <div className="logo-section">
-            <div className="logo-circle">
-              <i className="ti ti-compass"></i>
+        <div className="hero-screen">
+          <div className="hero-top">
+            <span className="hero-login-link" onClick={() => setScreen('login')}>
+              {t.haveAccount} <b>{t.login}</b>
+            </span>
+          </div>
+
+          <div className="hero-content">
+            <div className="hero-text">
+              <div className="hero-logo-row">
+                <div className="logo-circle small">
+                  <i className="ti ti-compass"></i>
+                </div>
+                <span className="hero-brand">{t.appName}</span>
+              </div>
+
+              <h1 className="hero-title">{t.heroTitle}</h1>
+              <p className="hero-description">{t.heroDescription}</p>
+
+              <div className="hero-buttons">
+                <button className="btn-primary" onClick={() => setScreen('studentForm')}>
+                  {t.findExpert}
+                </button>
+                <button className="btn-secondary" onClick={() => setScreen('expertForm')}>
+                  {t.joinAsExpert}
+                </button>
+              </div>
+
+              <div className="hero-trust">
+                <span><i className="ti ti-shield-check"></i> {t.trust1}</span>
+                <span><i className="ti ti-lock"></i> {t.trust2}</span>
+                <span><i className="ti ti-calendar-time"></i> {t.trust3}</span>
+              </div>
             </div>
-            <h1>{t.appName}</h1>
-            <p>{t.tagline}</p>
-          </div>
 
-          <div className="auth-buttons">
-            <button className="btn-primary" onClick={() => setScreen('accountType')}>
-              {t.signup}
-            </button>
-            <button className="btn-secondary" onClick={() => setScreen('login')}>
-              {t.login}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {screen === 'accountType' && (
-        <div className="account-type-screen">
-          <button className="back-btn" onClick={() => setScreen('welcome')}>
-            <i className="ti ti-arrow-right"></i> {t.back}
-          </button>
-
-          <h2>{t.chooseType}</h2>
-
-          <div className="type-cards">
-            <button className="type-card" onClick={() => setScreen('studentForm')}>
-              <i className="ti ti-briefcase"></i>
-              <span>{t.seeker}</span>
-            </button>
-            <button className="type-card" onClick={() => setScreen('expertForm')}>
-              <i className="ti ti-star"></i>
-              <span>{t.expert}</span>
-            </button>
+            <div className="hero-illustration">
+              <div className="hero-blob"></div>
+              <div className="hero-bubble center">
+                <i className="ti ti-message-2"></i>
+              </div>
+              <div className="hero-bubble top-left">
+                <i className="ti ti-user"></i>
+              </div>
+              <div className="hero-bubble bottom-right">
+                <i className="ti ti-user-star"></i>
+              </div>
+              <div className="hero-dot dot-1"></div>
+              <div className="hero-dot dot-2"></div>
+              <div className="hero-dot dot-3"></div>
+            </div>
           </div>
         </div>
       )}
 
       {screen === 'studentForm' && (
         <div className="form-screen">
-          <button className="back-btn" onClick={() => setScreen('accountType')}>
+          <button className="back-btn" onClick={() => setScreen('welcome')}>
             <i className="ti ti-arrow-right"></i> {t.back}
           </button>
 
@@ -305,52 +401,39 @@ function App() {
             </div>
 
             <div className="form-group">
-              <label>{t.city}</label>
-              <input
-                type="text"
-                value={studentData.city}
-                onChange={(e) => handleStudentChange('city', e.target.value)}
-              />
+              <label>{t.email}</label>
+              <div
+                className={`email-input-wrapper ${
+                  studentData.email ? (isValidEmail(studentData.email) ? 'valid' : 'invalid') : ''
+                }`}
+              >
+                <i className="ti ti-mail email-icon"></i>
+                <input
+                  type="email"
+                  dir="ltr"
+                  placeholder={t.emailPlaceholder}
+                  value={studentData.email}
+                  disabled={studentVerified}
+                  onChange={(e) => handleStudentChange('email', e.target.value)}
+                />
+                {studentVerified && <i className="ti ti-circle-check email-check"></i>}
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>{t.phone}</label>
-              <div className="phone-row">
-                <input
-                  type="text"
-                  placeholder="05XXXXXXXX"
-                  value={studentData.phone}
-                  onChange={(e) => handleStudentChange('phone', e.target.value)}
-                />
+            {studentVerified ? (
+              <p className="otp-success">{t.emailVerifiedMsg}</p>
+            ) : (
+              <>
                 <button
                   type="button"
-                  className="btn-otp"
-                  onClick={() => generateOtp('student')}
+                  className="btn-secondary full-width"
+                  disabled={!isValidEmail(studentData.email)}
+                  onClick={() => sendVerificationEmail('student')}
                 >
-                  {t.sendCode}
+                  {studentLinkSent ? t.resendLink : t.sendVerificationLink}
                 </button>
-              </div>
-            </div>
-
-            {otpSent && otpFor === 'student' && (
-              <div className="otp-box">
-                <p className="otp-hint">
-                  {t.otpSentMessage} — {t.demoCode}: <b>{otpCode}</b>
-                </p>
-                <div className="phone-row">
-                  <input
-                    type="text"
-                    maxLength="4"
-                    placeholder={t.enterCode}
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value)}
-                  />
-                  <button type="button" className="btn-otp" onClick={checkOtp}>
-                    {t.verify}
-                  </button>
-                </div>
-                {otpVerified && <p className="otp-success">{t.verified}</p>}
-              </div>
+                {studentLinkSent && <p className="otp-hint">{t.checkEmailMessage}</p>}
+              </>
             )}
 
             <div className="form-group">
@@ -370,7 +453,7 @@ function App() {
 
       {screen === 'expertForm' && (
         <div className="form-screen">
-          <button className="back-btn" onClick={() => setScreen('accountType')}>
+          <button className="back-btn" onClick={() => setScreen('welcome')}>
             <i className="ti ti-arrow-right"></i> {t.back}
           </button>
 
@@ -432,43 +515,39 @@ function App() {
             </div>
 
             <div className="form-group">
-              <label>{t.phone}</label>
-              <div className="phone-row">
+              <label>{t.email}</label>
+              <div
+                className={`email-input-wrapper ${
+                  expertData.email ? (isValidEmail(expertData.email) ? 'valid' : 'invalid') : ''
+                }`}
+              >
+                <i className="ti ti-mail email-icon"></i>
                 <input
-                  type="text"
-                  placeholder="05XXXXXXXX"
-                  value={expertData.phone}
-                  onChange={(e) => handleExpertChange('phone', e.target.value)}
+                  type="email"
+                  dir="ltr"
+                  placeholder={t.emailPlaceholder}
+                  value={expertData.email}
+                  disabled={expertVerified}
+                  onChange={(e) => handleExpertChange('email', e.target.value)}
                 />
-                <button
-                  type="button"
-                  className="btn-otp"
-                  onClick={() => generateOtp('expert')}
-                >
-                  {t.sendCode}
-                </button>
+                {expertVerified && <i className="ti ti-circle-check email-check"></i>}
               </div>
             </div>
 
-            {otpSent && otpFor === 'expert' && (
-              <div className="otp-box">
-                <p className="otp-hint">
-                  {t.otpSentMessage} — {t.demoCode}: <b>{otpCode}</b>
-                </p>
-                <div className="phone-row">
-                  <input
-                    type="text"
-                    maxLength="4"
-                    placeholder={t.enterCode}
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value)}
-                  />
-                  <button type="button" className="btn-otp" onClick={checkOtp}>
-                    {t.verify}
-                  </button>
-                </div>
-                {otpVerified && <p className="otp-success">{t.verified}</p>}
-              </div>
+            {expertVerified ? (
+              <p className="otp-success">{t.emailVerifiedMsg}</p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary full-width"
+                  disabled={!isValidEmail(expertData.email)}
+                  onClick={() => sendVerificationEmail('expert')}
+                >
+                  {expertLinkSent ? t.resendLink : t.sendVerificationLink}
+                </button>
+                {expertLinkSent && <p className="otp-hint">{t.checkEmailMessage}</p>}
+              </>
             )}
 
             <div className="form-group">

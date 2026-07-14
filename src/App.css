@@ -586,3 +586,311 @@ html, body, #root {
   text-align: center;
   padding: 30px 0;
 }
+
+/* ===== HERO SCREEN ===== */
+.hero-screen {
+  width: 100%;
+  min-height: 100vh;
+  padding: 24px 6% 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.hero-login-link {
+  font-size: 14px;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.hero-login-link b {
+  color: #8a5bff;
+  font-weight: 600;
+}
+
+.hero-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-text {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.hero-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.logo-circle.small {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  margin: 0;
+}
+
+.hero-brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.hero-title {
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+  margin-bottom: 20px;
+}
+
+.hero-description {
+  font-size: 17px;
+  line-height: 1.8;
+  color: #aaa;
+  max-width: 520px;
+  margin-bottom: 32px;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.hero-buttons .btn-primary,
+.hero-buttons .btn-secondary {
+  width: auto;
+  padding: 14px 28px;
+  font-size: 15px;
+}
+
+.hero-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.hero-trust span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: #9ca3af;
+}
+
+.hero-trust i {
+  color: #8a5bff;
+  font-size: 16px;
+}
+
+/* Illustration */
+.hero-illustration {
+  flex: 0 0 340px;
+  position: relative;
+  height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-blob {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(138, 91, 255, 0.35), rgba(91, 108, 255, 0.08));
+  filter: blur(2px);
+}
+
+.hero-bubble {
+  position: absolute;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5b6cff, #8a5bff);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(91, 108, 255, 0.35);
+}
+
+.hero-bubble.center {
+  width: 120px;
+  height: 120px;
+  font-size: 44px;
+}
+
+.hero-bubble.top-left {
+  width: 72px;
+  height: 72px;
+  font-size: 28px;
+  top: 10px;
+  left: 20px;
+  background: linear-gradient(135deg, #2d2d44, #3f3f5c);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.hero-bubble.bottom-right {
+  width: 72px;
+  height: 72px;
+  font-size: 28px;
+  bottom: 10px;
+  right: 20px;
+}
+
+.hero-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #8a5bff;
+  opacity: 0.6;
+}
+
+.dot-1 { width: 10px; height: 10px; top: 30px; right: 60px; }
+.dot-2 { width: 6px; height: 6px; bottom: 50px; left: 40px; }
+.dot-3 { width: 14px; height: 14px; top: 60%; right: 0; }
+
+@media (max-width: 860px) {
+  .hero-content {
+    flex-direction: column-reverse;
+    gap: 32px;
+    text-align: center;
+  }
+
+  .hero-text {
+    text-align: center;
+  }
+
+  .hero-logo-row {
+    justify-content: center;
+  }
+
+  .hero-description {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .hero-buttons,
+  .hero-trust {
+    justify-content: center;
+  }
+
+  .hero-illustration {
+    flex: none;
+    width: 240px;
+    height: 240px;
+  }
+
+  .hero-blob {
+    width: 200px;
+    height: 200px;
+  }
+
+  .hero-bubble.center {
+    width: 90px;
+    height: 90px;
+    font-size: 34px;
+  }
+}
+
+/* ===== CONTACT METHOD TOGGLE ===== */
+.contact-toggle {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.contact-toggle button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.contact-toggle button.active {
+  background: linear-gradient(135deg, #5b6cff, #8a5bff);
+  color: white;
+}
+
+.contact-toggle button i {
+  font-size: 16px;
+}
+
+/* ===== EMAIL INPUT ===== */
+.email-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.email-input-wrapper input[type="email"] {
+  width: 100%;
+  padding: 12px 44px 12px 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 15px;
+  outline: none;
+  transition: 0.2s;
+  text-align: left;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.email-input-wrapper input[type="email"]::placeholder {
+  color: #666;
+}
+
+.email-input-wrapper input[type="email"]:focus {
+  border-color: #5b6cff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.email-icon {
+  position: absolute;
+  left: 14px;
+  color: #888;
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.email-check {
+  position: absolute;
+  right: 14px;
+  color: #4ade80;
+  font-size: 18px;
+}
+
+.email-input-wrapper.valid input[type="email"] {
+  border-color: rgba(74, 222, 128, 0.5);
+}
+
+.email-input-wrapper.invalid input[type="email"] {
+  border-color: rgba(248, 113, 113, 0.4);
+}
