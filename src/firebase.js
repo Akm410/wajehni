@@ -5,6 +5,7 @@ import {
   isSignInWithEmailLink,
   signInWithEmailLink,
 } from 'firebase/auth'
+import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: "AIzaSyAylR-JtkA7ZSokhINqZokBGoxSNrSQR1E",
@@ -18,10 +19,18 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+export const db = getFirestore(app)
 
 export const actionCodeSettings = {
   url: window.location.origin,
   handleCodeInApp: true,
 }
 
-export { sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink }
+export {
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  collection,
+  addDoc,
+  serverTimestamp,
+}

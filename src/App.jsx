@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import {
   auth,
+  db,
   actionCodeSettings,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
+  collection,
+  addDoc,
+  serverTimestamp,
 } from './firebase'
 
 function App() {
@@ -83,6 +87,7 @@ function App() {
       verifyEmailFirst: 'الرجاء إرسال رابط التحقق والضغط عليه من بريدك قبل المتابعة',
       invalidEmailFormat: 'صيغة البريد الإلكتروني غير صحيحة',
       linkErrorMessage: 'صار خطأ أثناء التحقق، جرب ترسل الرابط مرة ثانية',
+      saveErrorMessage: 'صار خطأ أثناء حفظ بياناتك، حاول مرة ثانية',
       registeredSuccess: 'سجلت حسابك بنجاح!',
       topExperts: 'أفضل الخبراء',
       specialties: 'التخصصات',
@@ -142,6 +147,7 @@ function App() {
       verifyEmailFirst: 'Please send and click the verification link before continuing',
       invalidEmailFormat: 'Invalid email format',
       linkErrorMessage: 'Something went wrong verifying your email, try sending the link again',
+      saveErrorMessage: 'Something went wrong saving your data, please try again',
       registeredSuccess: 'Account created successfully!',
       topExperts: 'Top Experts',
       specialties: 'Specialties',
@@ -218,7 +224,7 @@ function App() {
       }
     } catch (err) {
       console.error(err)
-      alert(t.linkErrorMessage)
+      alert(t.linkErrorMessage + ' — ' + err.code)
     }
   }
 
@@ -259,7 +265,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleStudentContinue = () => {
+  const handleStudentContinue = async () => {
     if (!studentData.name.trim() || !studentData.university.trim() || !studentData.major.trim()) {
       alert(t.requiredFieldsMissing)
       return
@@ -268,10 +274,19 @@ function App() {
       alert(t.verifyEmailFirst)
       return
     }
-    setScreen('home')
+    try {
+      await addDoc(collection(db, 'seekers'), {
+        ...studentData,
+        createdAt: serverTimestamp(),
+      })
+      setScreen('home')
+    } catch (err) {
+      console.error(err)
+      alert(t.saveErrorMessage)
+    }
   }
 
-  const handleExpertContinue = () => {
+  const handleExpertContinue = async () => {
     if (!expertData.name.trim() || !expertData.company.trim() || !expertData.jobTitle.trim()) {
       alert(t.requiredFieldsMissing)
       return
@@ -280,7 +295,17 @@ function App() {
       alert(t.verifyEmailFirst)
       return
     }
-    setScreen('pending')
+    try {
+      await addDoc(collection(db, 'experts'), {
+        ...expertData,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      })
+      setScreen('pending')
+    } catch (err) {
+      console.error(err)
+      alert(t.saveErrorMessage)
+    }
   }
 
   return (
