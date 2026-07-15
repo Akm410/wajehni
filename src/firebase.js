@@ -1,9 +1,8 @@
 import { initializeApp } from 'firebase/app'
 import {
   getAuth,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from 'firebase/auth'
 import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
@@ -21,15 +20,9 @@ const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const db = getFirestore(app)
 
-export const actionCodeSettings = {
-  url: window.location.origin,
-  handleCodeInApp: true,
-}
-
 export {
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   collection,
   addDoc,
   serverTimestamp,

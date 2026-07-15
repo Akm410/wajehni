@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './App.css'
 import {
   auth,
   db,
-  actionCodeSettings,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   collection,
   addDoc,
   serverTimestamp,
@@ -17,11 +15,7 @@ function App() {
   const [screen, setScreen] = useState('welcome')
   const [specialtySearch, setSpecialtySearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
-
-  const [studentVerified, setStudentVerified] = useState(false)
-  const [studentLinkSent, setStudentLinkSent] = useState(false)
-  const [expertVerified, setExpertVerified] = useState(false)
-  const [expertLinkSent, setExpertLinkSent] = useState(false)
+  const [selectedExpert, setSelectedExpert] = useState(null)
 
   const [studentData, setStudentData] = useState({
     name: '',
@@ -29,6 +23,7 @@ function App() {
     major: '',
     gradYear: '',
     email: '',
+    password: '',
   })
   const [expertData, setExpertData] = useState({
     name: '',
@@ -38,7 +33,10 @@ function App() {
     field: '',
     bio: '',
     email: '',
+    password: '',
   })
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
 
   const text = {
     ar: {
@@ -53,6 +51,7 @@ function App() {
       trust2: 'حجز سهل وآمن',
       trust3: 'جلسات أونلاين مرنة',
       login: 'تسجيل الدخول',
+      loginSubtitle: 'أدخل بريدك وكلمة المرور لتسجيل الدخول',
       signup: 'إنشاء حساب',
       chooseType: 'اختر نوع حسابك',
       seeker: 'باحث عن فرصة',
@@ -79,15 +78,13 @@ function App() {
       backHome: 'رجوع للرئيسية',
       email: 'البريد الإلكتروني',
       emailPlaceholder: 'example@email.com',
-      sendVerificationLink: 'إرسال رابط التحقق',
-      resendLink: 'إعادة الإرسال',
-      sending: 'جاري الإرسال...',
-      checkEmailMessage: 'افتح بريدك الإلكتروني واضغط على رابط التحقق. بعد الضغط بيرجع لك هذا التاب ويكمل تلقائياً.',
-      emailVerifiedMsg: 'تم التحقق من بريدك ✓',
-      verifyEmailFirst: 'الرجاء إرسال رابط التحقق والضغط عليه من بريدك قبل المتابعة',
+      password: 'كلمة المرور',
+      passwordHint: '6 أحرف على الأقل',
       invalidEmailFormat: 'صيغة البريد الإلكتروني غير صحيحة',
-      linkErrorMessage: 'صار خطأ أثناء التحقق، جرب ترسل الرابط مرة ثانية',
-      saveErrorMessage: 'صار خطأ أثناء حفظ بياناتك، حاول مرة ثانية',
+      signupErrorEmailInUse: 'هذا البريد مسجل مسبقاً، جرب تسجيل الدخول بدل',
+      signupErrorWeakPassword: 'كلمة المرور ضعيفة، لازم تكون 6 أحرف على الأقل',
+      loginErrorMessage: 'البريد أو كلمة المرور غير صحيحة',
+      genericAuthError: 'صار خطأ، حاول مرة ثانية',
       registeredSuccess: 'سجلت حسابك بنجاح!',
       topExperts: 'أفضل الخبراء',
       specialties: 'التخصصات',
@@ -99,7 +96,9 @@ function App() {
       expertsIn: 'الخبراء في',
       bookSession: 'احجز جلسة',
       noExpertsYet: 'ما فيه خبراء مسجلين بهذا المجال بعد',
-      requiredFieldsMissing: 'الرجاء تعبئة الاسم على الأقل قبل المتابعة',
+      requiredFieldsMissing: 'الرجاء تعبئة الحقول المطلوبة',
+      reviewsTitle: 'تقييمات سابقة',
+      viewProfile: 'عرض الملف',
     },
     en: {
       appName: 'Wajehni',
@@ -113,6 +112,7 @@ function App() {
       trust2: 'Easy & Secure Booking',
       trust3: 'Flexible Online Sessions',
       login: 'Login',
+      loginSubtitle: 'Enter your email and password to sign in',
       signup: 'Sign Up',
       chooseType: 'Choose your account type',
       seeker: 'Opportunity Seeker',
@@ -139,15 +139,13 @@ function App() {
       backHome: 'Back to home',
       email: 'Email',
       emailPlaceholder: 'example@email.com',
-      sendVerificationLink: 'Send Verification Link',
-      resendLink: 'Resend',
-      sending: 'Sending...',
-      checkEmailMessage: 'Open your email and click the verification link. This tab will finish automatically once you do.',
-      emailVerifiedMsg: 'Email verified ✓',
-      verifyEmailFirst: 'Please send and click the verification link before continuing',
+      password: 'Password',
+      passwordHint: 'At least 6 characters',
       invalidEmailFormat: 'Invalid email format',
-      linkErrorMessage: 'Something went wrong verifying your email, try sending the link again',
-      saveErrorMessage: 'Something went wrong saving your data, please try again',
+      signupErrorEmailInUse: 'This email is already registered, try logging in instead',
+      signupErrorWeakPassword: 'Weak password, must be at least 6 characters',
+      loginErrorMessage: 'Incorrect email or password',
+      genericAuthError: 'Something went wrong, please try again',
       registeredSuccess: 'Account created successfully!',
       topExperts: 'Top Experts',
       specialties: 'Specialties',
@@ -159,16 +157,48 @@ function App() {
       expertsIn: 'Experts in',
       bookSession: 'Book a session',
       noExpertsYet: 'No experts registered in this field yet',
-      requiredFieldsMissing: 'Please fill in at least your name before continuing',
+      requiredFieldsMissing: 'Please fill in the required fields',
+      reviewsTitle: 'Previous Reviews',
+      viewProfile: 'View Profile',
     },
   }
 
   const t = text[language]
 
   const mockExperts = [
-    { name: 'أبو داحم', field: 'إدارة الأعمال', rating: 4.9, sessions: 32 },
-    { name: 'الحب أبو خلود', field: 'هندسة برمجيات', rating: 4.8, sessions: 45 },
-    { name: 'الحب حصحص', field: 'تسويق رقمي', rating: 4.7, sessions: 28 },
+    {
+      name: 'أبو داحم',
+      field: 'إدارة الأعمال',
+      rating: 4.9,
+      sessions: 32,
+      bio: 'خبرة 12 سنة في إدارة الأعمال والمشاريع، عملت مع شركات كبرى في السعودية. أساعدك تفهم سوق العمل وتجهز نفسك صح للمقابلات.',
+      reviews: [
+        { name: 'سلطان', rating: 5, comment: 'ساعدني كثير في تجهيز نفسي للمقابلة، شرح واضح ومباشر.' },
+        { name: 'نوف', rating: 5, comment: 'خبرة حقيقية، أعطاني نصائح عملية مب بس نظرية.' },
+      ],
+    },
+    {
+      name: 'الحب أبو خلود',
+      field: 'هندسة برمجيات',
+      rating: 4.8,
+      sessions: 45,
+      bio: 'مهندس برمجيات بخبرة 8 سنوات، عملت في شركات تقنية محلية وعالمية. أقدر أساعدك في تطوير مهاراتك التقنية ومراجعة السيرة الذاتية.',
+      reviews: [
+        { name: 'عبدالله', rating: 5, comment: 'جلسة ممتازة، وضح لي أشياء كثير كانت غامضة عندي.' },
+        { name: 'ريم', rating: 4, comment: 'مفيد جداً، بس ودي الجلسة تطول شوي أكثر.' },
+      ],
+    },
+    {
+      name: 'الحب حصحص',
+      field: 'تسويق رقمي',
+      rating: 4.7,
+      sessions: 28,
+      bio: 'متخصصة في التسويق الرقمي وإدارة المحتوى، عملت مع عدة علامات تجارية سعودية. أحب أساعد الشباب يدخلون المجال بثقة.',
+      reviews: [
+        { name: 'فهد', rating: 5, comment: 'أعطتني خطة واضحة أبدأ فيها بالتسويق الرقمي.' },
+        { name: 'لمى', rating: 4, comment: 'شرح زين ومنظم.' },
+      ],
+    },
   ]
 
   const categories = [
@@ -200,89 +230,46 @@ function App() {
     setExpertData({ ...expertData, [field]: value })
   }
 
-  // إرسال رابط التحقق الحقيقي عبر Firebase
-  const sendVerificationEmail = async (formType) => {
-    const email = formType === 'student' ? studentData.email : expertData.email
-
-    if (!isValidEmail(email)) {
+  const handleAuthError = (err) => {
+    console.error(err)
+    if (err.code === 'auth/email-already-in-use') {
+      alert(t.signupErrorEmailInUse)
+    } else if (err.code === 'auth/weak-password') {
+      alert(t.signupErrorWeakPassword)
+    } else if (err.code === 'auth/invalid-email') {
       alert(t.invalidEmailFormat)
-      return
-    }
-
-    try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
-      localStorage.setItem('emailForSignIn', email)
-      localStorage.setItem('signupType', formType)
-      localStorage.setItem(
-        'formDraft',
-        JSON.stringify(formType === 'student' ? studentData : expertData)
-      )
-      if (formType === 'student') {
-        setStudentLinkSent(true)
-      } else {
-        setExpertLinkSent(true)
-      }
-    } catch (err) {
-      console.error(err)
-      alert(t.linkErrorMessage + ' — ' + err.code)
+    } else {
+      alert(t.genericAuthError)
     }
   }
-
-  // عند فتح الرابط اللي وصل بالإيميل، نكمل التحقق تلقائياً
-  useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      let email = localStorage.getItem('emailForSignIn')
-      if (!email) {
-        email = window.prompt(t.email)
-      }
-
-      signInWithEmailLink(auth, email, window.location.href)
-        .then(() => {
-          const type = localStorage.getItem('signupType')
-          const draftRaw = localStorage.getItem('formDraft')
-          const draft = draftRaw ? JSON.parse(draftRaw) : null
-
-          if (type === 'student') {
-            setStudentData((prev) => ({ ...(draft || prev), email }))
-            setStudentVerified(true)
-            setScreen('studentForm')
-          } else if (type === 'expert') {
-            setExpertData((prev) => ({ ...(draft || prev), email }))
-            setExpertVerified(true)
-            setScreen('expertForm')
-          }
-
-          localStorage.removeItem('emailForSignIn')
-          localStorage.removeItem('signupType')
-          localStorage.removeItem('formDraft')
-          window.history.replaceState({}, document.title, window.location.pathname)
-        })
-        .catch((err) => {
-          console.error(err)
-          alert(t.linkErrorMessage)
-        })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const handleStudentContinue = async () => {
     if (!studentData.name.trim() || !studentData.university.trim() || !studentData.major.trim()) {
       alert(t.requiredFieldsMissing)
       return
     }
-    if (!studentVerified) {
-      alert(t.verifyEmailFirst)
+    if (!isValidEmail(studentData.email)) {
+      alert(t.invalidEmailFormat)
+      return
+    }
+    if (studentData.password.length < 6) {
+      alert(t.signupErrorWeakPassword)
       return
     }
     try {
+      const cred = await createUserWithEmailAndPassword(auth, studentData.email, studentData.password)
       await addDoc(collection(db, 'seekers'), {
-        ...studentData,
+        name: studentData.name,
+        university: studentData.university,
+        major: studentData.major,
+        gradYear: studentData.gradYear,
+        email: studentData.email,
+        uid: cred.user.uid,
         createdAt: serverTimestamp(),
       })
       setScreen('home')
     } catch (err) {
-      console.error(err)
-      alert(t.saveErrorMessage)
+      handleAuthError(err)
     }
   }
 
@@ -291,20 +278,49 @@ function App() {
       alert(t.requiredFieldsMissing)
       return
     }
-    if (!expertVerified) {
-      alert(t.verifyEmailFirst)
+    if (!isValidEmail(expertData.email)) {
+      alert(t.invalidEmailFormat)
+      return
+    }
+    if (expertData.password.length < 6) {
+      alert(t.signupErrorWeakPassword)
       return
     }
     try {
+      const cred = await createUserWithEmailAndPassword(auth, expertData.email, expertData.password)
       await addDoc(collection(db, 'experts'), {
-        ...expertData,
+        name: expertData.name,
+        company: expertData.company,
+        jobTitle: expertData.jobTitle,
+        experience: expertData.experience,
+        field: expertData.field,
+        bio: expertData.bio,
+        email: expertData.email,
+        uid: cred.user.uid,
         status: 'pending',
         createdAt: serverTimestamp(),
       })
       setScreen('pending')
     } catch (err) {
+      handleAuthError(err)
+    }
+  }
+
+  const handleLogin = async () => {
+    if (!isValidEmail(loginEmail)) {
+      alert(t.invalidEmailFormat)
+      return
+    }
+    if (!loginPassword) {
+      alert(t.requiredFieldsMissing)
+      return
+    }
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword)
+      setScreen('home')
+    } catch (err) {
       console.error(err)
-      alert(t.saveErrorMessage)
+      alert(t.loginErrorMessage)
     }
   }
 
@@ -427,39 +443,25 @@ function App() {
 
             <div className="form-group">
               <label>{t.email}</label>
-              <div
-                className={`email-input-wrapper ${
-                  studentData.email ? (isValidEmail(studentData.email) ? 'valid' : 'invalid') : ''
-                }`}
-              >
-                <i className="ti ti-mail email-icon"></i>
-                <input
-                  type="email"
-                  dir="ltr"
-                  placeholder={t.emailPlaceholder}
-                  value={studentData.email}
-                  disabled={studentVerified}
-                  onChange={(e) => handleStudentChange('email', e.target.value)}
-                />
-                {studentVerified && <i className="ti ti-circle-check email-check"></i>}
-              </div>
+              <input
+                type="email"
+                dir="ltr"
+                placeholder={t.emailPlaceholder}
+                value={studentData.email}
+                onChange={(e) => handleStudentChange('email', e.target.value)}
+              />
             </div>
 
-            {studentVerified ? (
-              <p className="otp-success">{t.emailVerifiedMsg}</p>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="btn-secondary full-width"
-                  disabled={!isValidEmail(studentData.email)}
-                  onClick={() => sendVerificationEmail('student')}
-                >
-                  {studentLinkSent ? t.resendLink : t.sendVerificationLink}
-                </button>
-                {studentLinkSent && <p className="otp-hint">{t.checkEmailMessage}</p>}
-              </>
-            )}
+            <div className="form-group">
+              <label>{t.password}</label>
+              <input
+                type="password"
+                dir="ltr"
+                value={studentData.password}
+                onChange={(e) => handleStudentChange('password', e.target.value)}
+              />
+              <p className="otp-hint">{t.passwordHint}</p>
+            </div>
 
             <div className="form-group">
               <label>{t.uploadCV}</label>
@@ -541,39 +543,25 @@ function App() {
 
             <div className="form-group">
               <label>{t.email}</label>
-              <div
-                className={`email-input-wrapper ${
-                  expertData.email ? (isValidEmail(expertData.email) ? 'valid' : 'invalid') : ''
-                }`}
-              >
-                <i className="ti ti-mail email-icon"></i>
-                <input
-                  type="email"
-                  dir="ltr"
-                  placeholder={t.emailPlaceholder}
-                  value={expertData.email}
-                  disabled={expertVerified}
-                  onChange={(e) => handleExpertChange('email', e.target.value)}
-                />
-                {expertVerified && <i className="ti ti-circle-check email-check"></i>}
-              </div>
+              <input
+                type="email"
+                dir="ltr"
+                placeholder={t.emailPlaceholder}
+                value={expertData.email}
+                onChange={(e) => handleExpertChange('email', e.target.value)}
+              />
             </div>
 
-            {expertVerified ? (
-              <p className="otp-success">{t.emailVerifiedMsg}</p>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="btn-secondary full-width"
-                  disabled={!isValidEmail(expertData.email)}
-                  onClick={() => sendVerificationEmail('expert')}
-                >
-                  {expertLinkSent ? t.resendLink : t.sendVerificationLink}
-                </button>
-                {expertLinkSent && <p className="otp-hint">{t.checkEmailMessage}</p>}
-              </>
-            )}
+            <div className="form-group">
+              <label>{t.password}</label>
+              <input
+                type="password"
+                dir="ltr"
+                value={expertData.password}
+                onChange={(e) => handleExpertChange('password', e.target.value)}
+              />
+              <p className="otp-hint">{t.passwordHint}</p>
+            </div>
 
             <div className="form-group">
               <label>{t.uploadProof}</label>
@@ -623,7 +611,15 @@ function App() {
             </div>
             <div className="experts-grid">
               {mockExperts.map((exp, i) => (
-                <div className="expert-card" key={i}>
+                <div
+                  className="expert-card"
+                  key={i}
+                  onClick={() => {
+                    setSelectedExpert(exp)
+                    setScreen('expertDetail')
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="expert-avatar">
                     <i className="ti ti-user"></i>
                   </div>
@@ -732,14 +728,22 @@ function App() {
             <div className="experts-grid">
               {expertsForCategory.map((exp, i) => (
                 <div className="expert-card" key={i}>
-                  <div className="expert-avatar">
-                    <i className="ti ti-user"></i>
-                  </div>
-                  <h4>{exp.name}</h4>
-                  <p className="expert-field">{exp.field}</p>
-                  <div className="expert-meta">
-                    <span><i className="ti ti-star-filled"></i> {exp.rating}</span>
-                    <span>{exp.sessions} {t.sessions}</span>
+                  <div
+                    onClick={() => {
+                      setSelectedExpert(exp)
+                      setScreen('expertDetail')
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="expert-avatar">
+                      <i className="ti ti-user"></i>
+                    </div>
+                    <h4>{exp.name}</h4>
+                    <p className="expert-field">{exp.field}</p>
+                    <div className="expert-meta">
+                      <span><i className="ti ti-star-filled"></i> {exp.rating}</span>
+                      <span>{exp.sessions} {t.sessions}</span>
+                    </div>
                   </div>
                   <button className="btn-primary full-width small">{t.bookSession}</button>
                 </div>
@@ -751,13 +755,82 @@ function App() {
         </div>
       )}
 
+      {screen === 'expertDetail' && selectedExpert && (
+        <div className="expert-detail-screen">
+          <button className="back-btn" onClick={() => setScreen('categoryDetail')}>
+            <i className="ti ti-arrow-right"></i> {t.back}
+          </button>
+
+          <div className="expert-detail-header">
+            <div className="expert-avatar large">
+              <i className="ti ti-user"></i>
+            </div>
+            <h2>{selectedExpert.name}</h2>
+            <p className="expert-field">{selectedExpert.field}</p>
+            <div className="expert-meta">
+              <span><i className="ti ti-star-filled"></i> {selectedExpert.rating}</span>
+              <span>{selectedExpert.sessions} {t.sessions}</span>
+            </div>
+          </div>
+
+          <p className="expert-detail-bio">{selectedExpert.bio}</p>
+
+          <button className="btn-primary full-width">{t.bookSession}</button>
+
+          <div className="reviews-section">
+            <h3>{t.reviewsTitle}</h3>
+            {selectedExpert.reviews.map((review, i) => (
+              <div className="review-card" key={i}>
+                <div className="review-header">
+                  <span className="review-name">{review.name}</span>
+                  <span className="review-rating">
+                    <i className="ti ti-star-filled"></i> {review.rating}
+                  </span>
+                </div>
+                <p className="review-comment">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {screen === 'login' && (
-        <div className="account-type-screen">
+        <div className="form-screen">
           <button className="back-btn" onClick={() => setScreen('welcome')}>
             <i className="ti ti-arrow-right"></i> {t.back}
           </button>
+
           <h2>{t.login}</h2>
-          <p>هذي الشاشة بنكملها بعدين</p>
+          <p style={{ textAlign: 'center', color: '#aaa', marginBottom: '20px' }}>
+            {t.loginSubtitle}
+          </p>
+
+          <div className="form-fields">
+            <div className="form-group">
+              <label>{t.email}</label>
+              <input
+                type="email"
+                dir="ltr"
+                placeholder={t.emailPlaceholder}
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>{t.password}</label>
+              <input
+                type="password"
+                dir="ltr"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+            </div>
+
+            <button className="btn-primary full-width" onClick={handleLogin}>
+              {t.login}
+            </button>
+          </div>
         </div>
       )}
     </div>
