@@ -8,6 +8,11 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
 } from './firebase'
 
 function App() {
@@ -43,6 +48,11 @@ function App() {
   const [bookingNote, setBookingNote] = useState('')
   const [bookingSubmitted, setBookingSubmitted] = useState(false)
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false)
+  const [myBookings, setMyBookings] = useState([])
+  const [loadingBookings, setLoadingBookings] = useState(false)
+  const [bookedSlotsForDate, setBookedSlotsForDate] = useState([])
+  const [expertBookings, setExpertBookings] = useState([])
+  const [loadingExpertBookings, setLoadingExpertBookings] = useState(false)
 
   const text = {
     ar: {
@@ -116,6 +126,18 @@ function App() {
       bookingSuccessTitle: 'تم إرسال طلب الحجز!',
       bookingSuccessMessage: 'ننتظر تأكيد الخبير، بيوصلك إشعار لما يوافق على الموعد.',
       loginRequiredForBooking: 'لازم تسجل دخول أول عشان تقدر تحجز جلسة',
+      myBookings: 'حجوزاتي',
+      myBookingsEmpty: 'ما عندك حجوزات لسه',
+      bookingStatusPending: 'قيد الانتظار',
+      bookingStatusConfirmed: 'مؤكد',
+      loadingText: 'جاري التحميل...',
+      slotTakenMessage: 'هذا الموعد محجوز مسبقاً، اختر تاريخ أو وقت ثاني',
+      expertDashboardTitle: 'طلبات الحجز',
+      acceptBooking: 'قبول',
+      rejectBooking: 'رفض',
+      bookingStatusCancelled: 'ملغي',
+      noBookingsForExpert: 'ما فيه طلبات حجز حالياً',
+      requesterLabel: 'من:',
     },
     en: {
       appName: 'Wajehni',
@@ -188,6 +210,18 @@ function App() {
       bookingSuccessTitle: 'Booking request sent!',
       bookingSuccessMessage: "We're waiting for the expert's confirmation, you'll be notified once approved.",
       loginRequiredForBooking: 'You need to log in first to book a session',
+      myBookings: 'My Bookings',
+      myBookingsEmpty: "You don't have any bookings yet",
+      bookingStatusPending: 'Pending',
+      bookingStatusConfirmed: 'Confirmed',
+      loadingText: 'Loading...',
+      slotTakenMessage: 'This slot is already booked, please choose another date or time',
+      expertDashboardTitle: 'Booking Requests',
+      acceptBooking: 'Accept',
+      rejectBooking: 'Reject',
+      bookingStatusCancelled: 'Cancelled',
+      noBookingsForExpert: 'No booking requests yet',
+      requesterLabel: 'From:',
     },
   }
 
@@ -356,11 +390,45 @@ function App() {
       return
     }
     try {
-      await signInWithEmailAndPassword(auth, loginEmail, loginPassword)
-      setScreen('home')
+      const cred = await signInWithEmailAndPassword(auth, loginEmail, loginPassword)
+      const expertQuery = query(collection(db, 'experts'), where('uid', '==', cred.user.uid))
+      const expertSnap = await getDocs(expertQuery)
+      if (!expertSnap.empty) {
+        const expertProfile = expertSnap.docs[0].data()
+        setScreen('expertDashboard')
+        fetchExpertBookings(expertProfile.name)
+      } else {
+        setScreen('home')
+      }
     } catch (err) {
       console.error(err)
       alert(t.loginErrorMessage)
+    }
+  }
+
+  const fetchExpertBookings = async (expertName) => {
+    setLoadingExpertBookings(true)
+    try {
+      const q = query(collection(db, 'bookings'), where('expertName', '==', expertName))
+      const snap = await getDocs(q)
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setExpertBookings(list)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingExpertBookings(false)
+    }
+  }
+
+  const handleUpdateBookingStatus = async (bookingId, newStatus) => {
+    try {
+      await updateDoc(doc(db, 'bookings', bookingId), { status: newStatus })
+      setExpertBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+      )
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
     }
   }
 
@@ -375,6 +443,19 @@ function App() {
       return
     }
     try {
+      const conflictQuery = query(
+        collection(db, 'bookings'),
+        where('expertName', '==', selectedExpert.name),
+        where('date', '==', bookingDate),
+        where('time', '==', bookingTime)
+      )
+      const conflictSnap = await getDocs(conflictQuery)
+      const hasConflict = conflictSnap.docs.some((d) => d.data().status !== 'cancelled')
+      if (hasConflict) {
+        alert(t.slotTakenMessage)
+        return
+      }
+
       await addDoc(collection(db, 'bookings'), {
         expertName: selectedExpert.name,
         expertField: selectedExpert.field,
@@ -390,6 +471,42 @@ function App() {
     } catch (err) {
       console.error(err)
       alert(t.genericAuthError)
+    }
+  }
+
+  const fetchBookedSlots = async (date) => {
+    if (!date || !selectedExpert) return
+    try {
+      const q = query(
+        collection(db, 'bookings'),
+        where('expertName', '==', selectedExpert.name),
+        where('date', '==', date)
+      )
+      const snap = await getDocs(q)
+      const taken = snap.docs
+        .filter((d) => d.data().status !== 'cancelled')
+        .map((d) => d.data().time)
+      setBookedSlotsForDate(taken)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+  const fetchMyBookings = async () => {
+    if (!auth.currentUser) {
+      setScreen('login')
+      return
+    }
+    setLoadingBookings(true)
+    try {
+      const q = query(collection(db, 'bookings'), where('requesterUid', '==', auth.currentUser.uid))
+      const snap = await getDocs(q)
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setMyBookings(list)
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
+    } finally {
+      setLoadingBookings(false)
     }
   }
 
@@ -671,6 +788,15 @@ function App() {
               <i className="ti ti-circle-check"></i>
             </div>
             <h2>{t.registeredSuccess}</h2>
+            <span
+              className="my-bookings-btn"
+              onClick={() => {
+                setScreen('myBookings')
+                fetchMyBookings()
+              }}
+            >
+              <i className="ti ti-calendar-event"></i> {t.myBookings}
+            </span>
           </div>
 
           <div className="home-section">
@@ -878,7 +1004,11 @@ function App() {
                 <input
                   type="date"
                   value={bookingDate}
-                  onChange={(e) => setBookingDate(e.target.value)}
+                  onChange={(e) => {
+                    setBookingDate(e.target.value)
+                    setBookingTime('')
+                    fetchBookedSlots(e.target.value)
+                  }}
                 />
               </div>
               <div className="form-group">
@@ -894,18 +1024,24 @@ function App() {
                   </button>
                   {timeDropdownOpen && (
                     <div className="custom-select-options">
-                      {timeSlots.map((slot) => (
-                        <div
-                          key={slot}
-                          className={`custom-select-option ${bookingTime === slot ? 'selected' : ''}`}
-                          onClick={() => {
-                            setBookingTime(slot)
-                            setTimeDropdownOpen(false)
-                          }}
-                        >
-                          {formatTimeLabel(slot)}
-                        </div>
-                      ))}
+                      {timeSlots.map((slot) => {
+                        const isTaken = bookedSlotsForDate.includes(slot)
+                        return (
+                          <div
+                            key={slot}
+                            className={`custom-select-option ${bookingTime === slot ? 'selected' : ''} ${
+                              isTaken ? 'taken' : ''
+                            }`}
+                            onClick={() => {
+                              if (isTaken) return
+                              setBookingTime(slot)
+                              setTimeDropdownOpen(false)
+                            }}
+                          >
+                            {formatTimeLabel(slot)}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -948,6 +1084,94 @@ function App() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {screen === 'myBookings' && (
+        <div className="all-specialties-screen">
+          <button className="back-btn" onClick={() => setScreen('home')}>
+            <i className="ti ti-arrow-right"></i> {t.back}
+          </button>
+
+          <h2>{t.myBookings}</h2>
+
+          {loadingBookings ? (
+            <p className="no-results">{t.loadingText}</p>
+          ) : myBookings.length > 0 ? (
+            <div className="category-list">
+              {myBookings.map((b) => (
+                <div className="review-card" key={b.id}>
+                  <div className="review-header">
+                    <span className="review-name">{b.expertName}</span>
+                    <span className={`booking-status ${b.status}`}>
+                      {b.status === 'confirmed' ? t.bookingStatusConfirmed : t.bookingStatusPending}
+                    </span>
+                  </div>
+                  <p className="review-comment">
+                    {b.date} — {formatTimeLabel(b.time)}
+                  </p>
+                  {b.note && <p className="review-comment">{b.note}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-results">{t.myBookingsEmpty}</p>
+          )}
+        </div>
+      )}
+
+      {screen === 'expertDashboard' && (
+        <div className="all-specialties-screen">
+          <button className="back-btn" onClick={() => setScreen('welcome')}>
+            <i className="ti ti-arrow-right"></i> {t.back}
+          </button>
+
+          <h2>{t.expertDashboardTitle}</h2>
+
+          {loadingExpertBookings ? (
+            <p className="no-results">{t.loadingText}</p>
+          ) : expertBookings.length > 0 ? (
+            <div className="category-list">
+              {expertBookings.map((b) => (
+                <div className="review-card" key={b.id}>
+                  <div className="review-header">
+                    <span className="review-name">
+                      {t.requesterLabel} {b.requesterEmail}
+                    </span>
+                    <span className={`booking-status ${b.status}`}>
+                      {b.status === 'confirmed'
+                        ? t.bookingStatusConfirmed
+                        : b.status === 'cancelled'
+                        ? t.bookingStatusCancelled
+                        : t.bookingStatusPending}
+                    </span>
+                  </div>
+                  <p className="review-comment">
+                    {b.date} — {formatTimeLabel(b.time)}
+                  </p>
+                  {b.note && <p className="review-comment">{b.note}</p>}
+                  {b.status === 'pending' && (
+                    <div className="booking-actions">
+                      <button
+                        className="btn-secondary"
+                        onClick={() => handleUpdateBookingStatus(b.id, 'cancelled')}
+                      >
+                        {t.rejectBooking}
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={() => handleUpdateBookingStatus(b.id, 'confirmed')}
+                      >
+                        {t.acceptBooking}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-results">{t.noBookingsForExpert}</p>
+          )}
         </div>
       )}
 

@@ -1106,3 +1106,60 @@ html, body, #root {
   font-size: 14px;
   line-height: 1.6;
 }
+
+/* ===== BOOKING STATUS BADGE ===== */
+.booking-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.booking-status.pending {
+  background: rgba(255, 184, 0, 0.15);
+  color: #ffb800;
+}
+
+.booking-status.confirmed {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+/* ===== TAKEN TIME SLOT ===== */
+.custom-select-option.taken {
+  text-decoration: line-through;
+  color: #666;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.custom-select-option.taken:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+/* ===== MY BOOKINGS BUTTON (top-left, bordered, prominent) ===== */
+.my-bookings-btn {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid #8a5bff;
+  border-radius: 10px;
+  background: rgba(138, 91, 255, 0.1);
+  color: #8a5bff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+  transition: 0.2s;
+}
+
+.my-bookings-btn:hover {
+  background: rgba(138, 91, 255, 0.2);
+}
+
+.my-bookings-btn i {
+  font-size: 18px;
+}
