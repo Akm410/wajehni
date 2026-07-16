@@ -37,6 +37,12 @@ function App() {
   })
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [showBookingForm, setShowBookingForm] = useState(false)
+  const [bookingDate, setBookingDate] = useState('')
+  const [bookingTime, setBookingTime] = useState('')
+  const [bookingNote, setBookingNote] = useState('')
+  const [bookingSubmitted, setBookingSubmitted] = useState(false)
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false)
 
   const text = {
     ar: {
@@ -99,6 +105,17 @@ function App() {
       requiredFieldsMissing: 'الرجاء تعبئة الحقول المطلوبة',
       reviewsTitle: 'تقييمات سابقة',
       viewProfile: 'عرض الملف',
+      selectDateTime: 'اختر التاريخ والوقت',
+      date: 'التاريخ',
+      time: 'الوقت',
+      selectTimePlaceholder: 'اختر الوقت',
+      note: 'ملاحظة (اختياري)',
+      notePlaceholder: 'أي شي تحب توضحه للخبير قبل الجلسة...',
+      confirmBooking: 'تأكيد الحجز',
+      cancelBooking: 'إلغاء',
+      bookingSuccessTitle: 'تم إرسال طلب الحجز!',
+      bookingSuccessMessage: 'ننتظر تأكيد الخبير، بيوصلك إشعار لما يوافق على الموعد.',
+      loginRequiredForBooking: 'لازم تسجل دخول أول عشان تقدر تحجز جلسة',
     },
     en: {
       appName: 'Wajehni',
@@ -160,6 +177,17 @@ function App() {
       requiredFieldsMissing: 'Please fill in the required fields',
       reviewsTitle: 'Previous Reviews',
       viewProfile: 'View Profile',
+      selectDateTime: 'Select Date & Time',
+      date: 'Date',
+      time: 'Time',
+      selectTimePlaceholder: 'Select a time',
+      note: 'Note (optional)',
+      notePlaceholder: 'Anything you want the expert to know before the session...',
+      confirmBooking: 'Confirm Booking',
+      cancelBooking: 'Cancel',
+      bookingSuccessTitle: 'Booking request sent!',
+      bookingSuccessMessage: "We're waiting for the expert's confirmation, you'll be notified once approved.",
+      loginRequiredForBooking: 'You need to log in first to book a session',
     },
   }
 
@@ -215,6 +243,18 @@ function App() {
   ]
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  const timeSlots = [
+    '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
+    '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00',
+  ]
+
+  const formatTimeLabel = (time24) => {
+    const hour = parseInt(time24.split(':')[0], 10)
+    const period = hour < 12 ? 'AM' : 'PM'
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12
+    return `${hour12}:00 ${period}`
+  }
 
   const filteredCategories = categories.filter((cat) =>
     cat.name.toLowerCase().includes(specialtySearch.toLowerCase())
@@ -321,6 +361,35 @@ function App() {
     } catch (err) {
       console.error(err)
       alert(t.loginErrorMessage)
+    }
+  }
+
+  const handleBookingSubmit = async () => {
+    if (!auth.currentUser) {
+      alert(t.loginRequiredForBooking)
+      setScreen('login')
+      return
+    }
+    if (!bookingDate || !bookingTime) {
+      alert(t.requiredFieldsMissing)
+      return
+    }
+    try {
+      await addDoc(collection(db, 'bookings'), {
+        expertName: selectedExpert.name,
+        expertField: selectedExpert.field,
+        date: bookingDate,
+        time: bookingTime,
+        note: bookingNote,
+        requesterEmail: auth.currentUser.email,
+        requesterUid: auth.currentUser.uid,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      })
+      setBookingSubmitted(true)
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
     }
   }
 
@@ -745,7 +814,15 @@ function App() {
                       <span>{exp.sessions} {t.sessions}</span>
                     </div>
                   </div>
-                  <button className="btn-primary full-width small">{t.bookSession}</button>
+                  <button
+                    className="btn-primary full-width small"
+                    onClick={() => {
+                      setSelectedExpert(exp)
+                      setScreen('expertDetail')
+                    }}
+                  >
+                    {t.bookSession}
+                  </button>
                 </div>
               ))}
             </div>
@@ -757,7 +834,17 @@ function App() {
 
       {screen === 'expertDetail' && selectedExpert && (
         <div className="expert-detail-screen">
-          <button className="back-btn" onClick={() => setScreen('categoryDetail')}>
+          <button
+            className="back-btn"
+            onClick={() => {
+              setShowBookingForm(false)
+              setBookingSubmitted(false)
+              setBookingDate('')
+              setBookingTime('')
+              setBookingNote('')
+              setScreen('home')
+            }}
+          >
             <i className="ti ti-arrow-right"></i> {t.back}
           </button>
 
@@ -775,7 +862,77 @@ function App() {
 
           <p className="expert-detail-bio">{selectedExpert.bio}</p>
 
-          <button className="btn-primary full-width">{t.bookSession}</button>
+          {bookingSubmitted ? (
+            <div className="booking-success">
+              <div className="pending-icon small">
+                <i className="ti ti-circle-check"></i>
+              </div>
+              <h3>{t.bookingSuccessTitle}</h3>
+              <p>{t.bookingSuccessMessage}</p>
+            </div>
+          ) : showBookingForm ? (
+            <div className="booking-form">
+              <h3>{t.selectDateTime}</h3>
+              <div className="form-group">
+                <label>{t.date}</label>
+                <input
+                  type="date"
+                  value={bookingDate}
+                  onChange={(e) => setBookingDate(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>{t.time}</label>
+                <div className="custom-select">
+                  <button
+                    type="button"
+                    className="custom-select-trigger"
+                    onClick={() => setTimeDropdownOpen(!timeDropdownOpen)}
+                  >
+                    <span>{bookingTime ? formatTimeLabel(bookingTime) : t.selectTimePlaceholder}</span>
+                    <i className="ti ti-chevron-down"></i>
+                  </button>
+                  {timeDropdownOpen && (
+                    <div className="custom-select-options">
+                      {timeSlots.map((slot) => (
+                        <div
+                          key={slot}
+                          className={`custom-select-option ${bookingTime === slot ? 'selected' : ''}`}
+                          onClick={() => {
+                            setBookingTime(slot)
+                            setTimeDropdownOpen(false)
+                          }}
+                        >
+                          {formatTimeLabel(slot)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="form-group">
+                <label>{t.note}</label>
+                <textarea
+                  rows="3"
+                  placeholder={t.notePlaceholder}
+                  value={bookingNote}
+                  onChange={(e) => setBookingNote(e.target.value)}
+                ></textarea>
+              </div>
+              <div className="booking-actions">
+                <button className="btn-secondary" onClick={() => setShowBookingForm(false)}>
+                  {t.cancelBooking}
+                </button>
+                <button className="btn-primary" onClick={handleBookingSubmit}>
+                  {t.confirmBooking}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn-primary full-width" onClick={() => setShowBookingForm(true)}>
+              {t.bookSession}
+            </button>
+          )}
 
           <div className="reviews-section">
             <h3>{t.reviewsTitle}</h3>

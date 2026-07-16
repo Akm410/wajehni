@@ -977,3 +977,132 @@ html, body, #root {
   font-size: 14px;
   line-height: 1.6;
 }
+
+/* ===== BOOKING FORM ===== */
+.booking-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.booking-form h3 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.booking-form input[type="date"] {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+  color-scheme: dark;
+}
+
+.booking-form input[type="date"]:focus {
+  border-color: #5b6cff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: right;
+}
+
+.custom-select-trigger:hover {
+  border-color: #5b6cff;
+}
+
+.custom-select-trigger i {
+  color: #888;
+  font-size: 16px;
+}
+
+.custom-select-options {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #1e2340;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.custom-select-option {
+  padding: 12px 14px;
+  font-size: 14px;
+  color: white;
+  cursor: pointer;
+  text-align: right;
+}
+
+.custom-select-option:hover {
+  background: rgba(91, 108, 255, 0.15);
+}
+
+.custom-select-option.selected {
+  background: linear-gradient(135deg, #5b6cff, #8a5bff);
+  font-weight: 600;
+}
+
+.booking-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.booking-actions .btn-secondary,
+.booking-actions .btn-primary {
+  flex: 1;
+}
+
+.booking-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: 16px;
+  padding: 24px 20px;
+}
+
+.booking-success h3 {
+  color: #4ade80;
+  font-size: 18px;
+}
+
+.booking-success p {
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.6;
+}
