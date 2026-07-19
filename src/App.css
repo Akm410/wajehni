@@ -1005,6 +1005,8 @@ html, body, #root {
   outline: none;
   font-family: inherit;
   color-scheme: dark;
+  direction: ltr;
+  text-align: right;
 }
 
 .booking-form input[type="date"]:focus {
