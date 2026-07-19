@@ -1163,3 +1163,131 @@ html, body, #root {
 .my-bookings-btn i {
   font-size: 18px;
 }
+/* ============================================= */
+/* ============ MOBILE RESPONSIVE ============= */
+/* ============================================= */
+
+@media (max-width: 600px) {
+  .app-container {
+    padding: 20px 14px 30px;
+  }
+
+  /* الأزرار الثابتة (اللغة، رجوع، حجوزاتي) تصير أصغر وأقرب للحواف */
+  .language-switch {
+    top: 12px;
+    right: 12px;
+    padding: 3px;
+  }
+
+  .language-switch button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .back-btn {
+    top: 12px;
+    left: 12px;
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .my-bookings-btn {
+    top: 12px;
+    left: 12px;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  /* مسافة فوق كل الشاشات عشان ما تتصادم مع الأزرار الثابتة */
+  .form-screen,
+  .all-specialties-screen,
+  .expert-detail-screen,
+  .home-page,
+  .pending-screen,
+  .account-type-screen {
+    margin-top: 48px;
+  }
+
+  /* العناوين تصغر شوي */
+  .form-screen h2,
+  .all-specialties-screen h2,
+  .expert-detail-header h2 {
+    font-size: 21px;
+  }
+
+  .home-header h2 {
+    font-size: 18px;
+  }
+
+  /* منع الزوم التلقائي بالآيفون على حقول الإدخال (لازم 16px فأكثر) */
+  .form-group input[type="text"],
+  .form-group input[type="email"],
+  .form-group input[type="password"],
+  .form-group textarea,
+  .booking-form input[type="date"],
+  .custom-select-trigger,
+  .search-box input,
+  .email-input-wrapper input[type="email"] {
+    font-size: 16px;
+  }
+
+  /* بطاقات الخبراء تصير عمود واحد بعرض كامل */
+  .experts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .expert-card {
+    padding: 16px;
+  }
+
+  /* صفوف الأقسام تصغر شوي */
+  .category-row {
+    padding: 12px 14px;
+  }
+
+  .category-row-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    font-size: 17px;
+  }
+
+  /* أزرار الحجز (قبول/رفض/تأكيد) تصير عمودية بدل صف أفقي ضيق */
+  .booking-actions {
+    flex-direction: column;
+  }
+
+  /* الأفاتار الكبير بصفحة الخبير يصغر شوي */
+  .expert-avatar.large {
+    width: 78px;
+    height: 78px;
+    font-size: 34px;
+  }
+
+  /* الهيرو: أزرار البداية تصير بعرض كامل بدل جنب بعض */
+  .hero-buttons {
+    flex-direction: column;
+  }
+
+  .hero-buttons .btn-primary,
+  .hero-buttons .btn-secondary {
+    width: 100%;
+  }
+
+  .hero-screen {
+    padding: 70px 5% 30px;
+  }
+}
+
+@media (max-width: 360px) {
+  .logo-circle {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+
+  .form-screen,
+  .account-type-screen {
+    max-width: 100%;
+  }
+}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import emailjs from '@emailjs/browser'
 import {
   auth,
   db,
@@ -14,6 +15,10 @@ import {
   doc,
   updateDoc,
 } from './firebase'
+
+const EMAILJS_SERVICE_ID = 'service_4jvccxa'
+const EMAILJS_TEMPLATE_ID = 'template_fney8hc'
+const EMAILJS_PUBLIC_KEY = 'lSxqFPVHZNjayS9op'
 
 function App() {
   const [language, setLanguage] = useState('ar')
@@ -53,6 +58,10 @@ function App() {
   const [bookedSlotsForDate, setBookedSlotsForDate] = useState([])
   const [expertBookings, setExpertBookings] = useState([])
   const [loadingExpertBookings, setLoadingExpertBookings] = useState(false)
+
+  const [confirmingBookingId, setConfirmingBookingId] = useState(null)
+  const [meetingLinkInput, setMeetingLinkInput] = useState('')
+  const [sendingConfirmation, setSendingConfirmation] = useState(false)
 
   const text = {
     ar: {
@@ -138,6 +147,13 @@ function App() {
       bookingStatusCancelled: 'ملغي',
       noBookingsForExpert: 'ما فيه طلبات حجز حالياً',
       requesterLabel: 'من:',
+      meetingLinkLabel: 'رابط المقابلة (Zoom / Google Meet)',
+      meetingLinkPlaceholder: 'https://meet.google.com/xxx-xxxx-xxx',
+      sendConfirmation: 'تأكيد وإرسال الإشعار',
+      sendingConfirmationText: 'جاري الإرسال...',
+      missingMeetingLink: 'الرجاء إدخال رابط المقابلة قبل التأكيد',
+      joinMeeting: 'رابط المقابلة',
+      cancelConfirm: 'تراجع',
     },
     en: {
       appName: 'Wajehni',
@@ -222,6 +238,13 @@ function App() {
       bookingStatusCancelled: 'Cancelled',
       noBookingsForExpert: 'No booking requests yet',
       requesterLabel: 'From:',
+      meetingLinkLabel: 'Meeting Link (Zoom / Google Meet)',
+      meetingLinkPlaceholder: 'https://meet.google.com/xxx-xxxx-xxx',
+      sendConfirmation: 'Confirm & Send Notification',
+      sendingConfirmationText: 'Sending...',
+      missingMeetingLink: 'Please enter the meeting link before confirming',
+      joinMeeting: 'Meeting link',
+      cancelConfirm: 'Cancel',
     },
   }
 
@@ -429,6 +452,58 @@ function App() {
     } catch (err) {
       console.error(err)
       alert(t.genericAuthError)
+    }
+  }
+
+  const handleStartAccept = (bookingId) => {
+    setConfirmingBookingId(bookingId)
+    setMeetingLinkInput('')
+  }
+
+  const handleCancelAccept = () => {
+    setConfirmingBookingId(null)
+    setMeetingLinkInput('')
+  }
+
+  const handleConfirmWithLink = async (booking) => {
+    if (!meetingLinkInput.trim()) {
+      alert(t.missingMeetingLink)
+      return
+    }
+    setSendingConfirmation(true)
+    try {
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        status: 'confirmed',
+        meetingLink: meetingLinkInput.trim(),
+      })
+      setExpertBookings((prev) =>
+        prev.map((b) =>
+          b.id === booking.id
+            ? { ...b, status: 'confirmed', meetingLink: meetingLinkInput.trim() }
+            : b
+        )
+      )
+
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          to_email: booking.requesterEmail,
+          expert_name: booking.expertName,
+          booking_date: booking.date,
+          booking_time: formatTimeLabel(booking.time),
+          meeting_link: meetingLinkInput.trim(),
+        },
+        EMAILJS_PUBLIC_KEY
+      )
+
+      setConfirmingBookingId(null)
+      setMeetingLinkInput('')
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
+    } finally {
+      setSendingConfirmation(false)
     }
   }
 
@@ -1111,6 +1186,14 @@ function App() {
                     {b.date} — {formatTimeLabel(b.time)}
                   </p>
                   {b.note && <p className="review-comment">{b.note}</p>}
+                  {b.status === 'confirmed' && b.meetingLink && (
+                    <p className="review-comment">
+                      <i className="ti ti-video"></i> {t.joinMeeting}:{' '}
+                      <a href={b.meetingLink} target="_blank" rel="noreferrer">
+                        {b.meetingLink}
+                      </a>
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -1150,7 +1233,39 @@ function App() {
                     {b.date} — {formatTimeLabel(b.time)}
                   </p>
                   {b.note && <p className="review-comment">{b.note}</p>}
-                  {b.status === 'pending' && (
+
+                  {b.status === 'confirmed' && b.meetingLink && (
+                    <p className="review-comment">
+                      <i className="ti ti-video"></i> {t.joinMeeting}: {b.meetingLink}
+                    </p>
+                  )}
+
+                  {b.status === 'pending' && confirmingBookingId === b.id && (
+                    <div className="form-group">
+                      <label>{t.meetingLinkLabel}</label>
+                      <input
+                        type="text"
+                        dir="ltr"
+                        placeholder={t.meetingLinkPlaceholder}
+                        value={meetingLinkInput}
+                        onChange={(e) => setMeetingLinkInput(e.target.value)}
+                      />
+                      <div className="booking-actions">
+                        <button className="btn-secondary" onClick={handleCancelAccept}>
+                          {t.cancelConfirm}
+                        </button>
+                        <button
+                          className="btn-primary"
+                          onClick={() => handleConfirmWithLink(b)}
+                          disabled={sendingConfirmation}
+                        >
+                          {sendingConfirmation ? t.sendingConfirmationText : t.sendConfirmation}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {b.status === 'pending' && confirmingBookingId !== b.id && (
                     <div className="booking-actions">
                       <button
                         className="btn-secondary"
@@ -1158,10 +1273,7 @@ function App() {
                       >
                         {t.rejectBooking}
                       </button>
-                      <button
-                        className="btn-primary"
-                        onClick={() => handleUpdateBookingStatus(b.id, 'confirmed')}
-                      >
+                      <button className="btn-primary" onClick={() => handleStartAccept(b.id)}>
                         {t.acceptBooking}
                       </button>
                     </div>
