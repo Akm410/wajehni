@@ -6,6 +6,8 @@ import {
   db,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  deleteUser,
   collection,
   addDoc,
   serverTimestamp,
@@ -14,6 +16,7 @@ import {
   getDocs,
   doc,
   updateDoc,
+  deleteDoc,
 } from './firebase'
 
 const EMAILJS_SERVICE_ID = 'service_4jvccxa'
@@ -62,6 +65,10 @@ function App() {
   const [confirmingBookingId, setConfirmingBookingId] = useState(null)
   const [meetingLinkInput, setMeetingLinkInput] = useState('')
   const [sendingConfirmation, setSendingConfirmation] = useState(false)
+
+  // 🆕 سؤال المادة العلمية بنموذج الحجز
+  const [hasMaterial, setHasMaterial] = useState(null) // null | 'yes' | 'no'
+  const [materialComment, setMaterialComment] = useState('')
 
   const text = {
     ar: {
@@ -154,6 +161,19 @@ function App() {
       missingMeetingLink: 'الرجاء إدخال رابط المقابلة قبل التأكيد',
       joinMeeting: 'رابط المقابلة',
       cancelConfirm: 'تراجع',
+      forgotPassword: 'نسيت كلمة المرور؟',
+      forgotPasswordSent: 'أرسلنا لك رابط إعادة تعيين كلمة المرور على بريدك الإلكتروني',
+      forgotPasswordNeedEmail: 'اكتب بريدك الإلكتروني بالخانة فوق أول، وبعدين اضغط "نسيت كلمة المرور؟"',
+      deleteAccount: 'حذف الحساب',
+      deleteAccountConfirm: 'هل أنت متأكد إنك تبي تحذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه.',
+      accountDeletedSuccess: 'تم حذف حسابك بنجاح',
+      reauthRequired: 'لأمان حسابك، لازم تسجل خروج وتدخل مرة ثانية قبل ما تقدر تحذف الحساب',
+      hasMaterialQuestion: 'هل عندك المادة العلمية اللي تبي تناقشها بالجلسة؟',
+      materialYes: 'نعم',
+      materialNo: 'لا',
+      materialCommentLabel: 'وش الأشياء اللي تحتاجها؟',
+      materialCommentPlaceholder: 'اكتب هنا وش تحتاج من الخبير يجهزه أو يساعدك فيه...',
+      materialRequiredMissing: 'الرجاء تحديد إذا عندك المادة العلمية أو لا',
     },
     en: {
       appName: 'Wajehni',
@@ -245,6 +265,19 @@ function App() {
       missingMeetingLink: 'Please enter the meeting link before confirming',
       joinMeeting: 'Meeting link',
       cancelConfirm: 'Cancel',
+      forgotPassword: 'Forgot password?',
+      forgotPasswordSent: 'We sent a password reset link to your email',
+      forgotPasswordNeedEmail: 'Enter your email above first, then click "Forgot password?"',
+      deleteAccount: 'Delete Account',
+      deleteAccountConfirm: 'Are you sure you want to delete your account? This action cannot be undone.',
+      accountDeletedSuccess: 'Your account was deleted successfully',
+      reauthRequired: 'For your security, please sign out and log in again before deleting your account',
+      hasMaterialQuestion: 'Do you have the study material you want to discuss in the session?',
+      materialYes: 'Yes',
+      materialNo: 'No',
+      materialCommentLabel: 'What do you need?',
+      materialCommentPlaceholder: 'Write what you need the expert to prepare or help you with...',
+      materialRequiredMissing: 'Please specify whether you have the study material or not',
     },
   }
 
@@ -429,6 +462,55 @@ function App() {
     }
   }
 
+  // 🆕 نسيت كلمة المرور
+  const handleForgotPassword = async () => {
+    if (!isValidEmail(loginEmail)) {
+      alert(t.forgotPasswordNeedEmail)
+      return
+    }
+    try {
+      await sendPasswordResetEmail(auth, loginEmail)
+      alert(t.forgotPasswordSent)
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
+    }
+  }
+
+  // 🆕 حذف الحساب
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser) return
+    const confirmed = window.confirm(t.deleteAccountConfirm)
+    if (!confirmed) return
+
+    try {
+      const uid = auth.currentUser.uid
+
+      const seekerQ = query(collection(db, 'seekers'), where('uid', '==', uid))
+      const seekerSnap = await getDocs(seekerQ)
+      for (const d of seekerSnap.docs) {
+        await deleteDoc(doc(db, 'seekers', d.id))
+      }
+
+      const expertQ = query(collection(db, 'experts'), where('uid', '==', uid))
+      const expertSnap = await getDocs(expertQ)
+      for (const d of expertSnap.docs) {
+        await deleteDoc(doc(db, 'experts', d.id))
+      }
+
+      await deleteUser(auth.currentUser)
+      alert(t.accountDeletedSuccess)
+      setScreen('welcome')
+    } catch (err) {
+      console.error(err)
+      if (err.code === 'auth/requires-recent-login') {
+        alert(t.reauthRequired)
+      } else {
+        alert(t.genericAuthError)
+      }
+    }
+  }
+
   const fetchExpertBookings = async (expertName) => {
     setLoadingExpertBookings(true)
     try {
@@ -517,6 +599,10 @@ function App() {
       alert(t.requiredFieldsMissing)
       return
     }
+    if (!hasMaterial) {
+      alert(t.materialRequiredMissing)
+      return
+    }
     try {
       const conflictQuery = query(
         collection(db, 'bookings'),
@@ -537,6 +623,8 @@ function App() {
         date: bookingDate,
         time: bookingTime,
         note: bookingNote,
+        hasMaterial: hasMaterial,
+        materialComment: hasMaterial === 'no' ? materialComment : '',
         requesterEmail: auth.currentUser.email,
         requesterUid: auth.currentUser.uid,
         status: 'pending',
@@ -872,6 +960,13 @@ function App() {
             >
               <i className="ti ti-calendar-event"></i> {t.myBookings}
             </span>
+            <span
+              className="my-bookings-btn"
+              style={{ borderColor: '#f87171', color: '#f87171', background: 'rgba(248,113,113,0.1)' }}
+              onClick={handleDeleteAccount}
+            >
+              <i className="ti ti-trash"></i> {t.deleteAccount}
+            </span>
           </div>
 
           <div className="home-section">
@@ -1043,6 +1138,8 @@ function App() {
               setBookingDate('')
               setBookingTime('')
               setBookingNote('')
+              setHasMaterial(null)
+              setMaterialComment('')
               setScreen('home')
             }}
           >
@@ -1121,6 +1218,43 @@ function App() {
                   )}
                 </div>
               </div>
+
+              {/* 🆕 سؤال المادة العلمية */}
+              <div className="form-group">
+                <label>{t.hasMaterialQuestion}</label>
+                <div className="booking-actions" style={{ marginTop: 0 }}>
+                  <button
+                    type="button"
+                    className={hasMaterial === 'yes' ? 'btn-primary' : 'btn-secondary'}
+                    onClick={() => {
+                      setHasMaterial('yes')
+                      setMaterialComment('')
+                    }}
+                  >
+                    {t.materialYes}
+                  </button>
+                  <button
+                    type="button"
+                    className={hasMaterial === 'no' ? 'btn-primary' : 'btn-secondary'}
+                    onClick={() => setHasMaterial('no')}
+                  >
+                    {t.materialNo}
+                  </button>
+                </div>
+              </div>
+
+              {hasMaterial === 'no' && (
+                <div className="form-group">
+                  <label>{t.materialCommentLabel}</label>
+                  <textarea
+                    rows="3"
+                    placeholder={t.materialCommentPlaceholder}
+                    value={materialComment}
+                    onChange={(e) => setMaterialComment(e.target.value)}
+                  ></textarea>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>{t.note}</label>
                 <textarea
@@ -1186,6 +1320,11 @@ function App() {
                     {b.date} — {formatTimeLabel(b.time)}
                   </p>
                   {b.note && <p className="review-comment">{b.note}</p>}
+                  {b.hasMaterial === 'no' && b.materialComment && (
+                    <p className="review-comment">
+                      <i className="ti ti-book-off"></i> {t.materialCommentLabel} {b.materialComment}
+                    </p>
+                  )}
                   {b.status === 'confirmed' && b.meetingLink && (
                     <p className="review-comment">
                       <i className="ti ti-video"></i> {t.joinMeeting}:{' '}
@@ -1211,6 +1350,21 @@ function App() {
 
           <h2>{t.expertDashboardTitle}</h2>
 
+          <span
+            className="my-bookings-btn"
+            style={{
+              position: 'static',
+              display: 'inline-flex',
+              marginBottom: '20px',
+              borderColor: '#f87171',
+              color: '#f87171',
+              background: 'rgba(248,113,113,0.1)',
+            }}
+            onClick={handleDeleteAccount}
+          >
+            <i className="ti ti-trash"></i> {t.deleteAccount}
+          </span>
+
           {loadingExpertBookings ? (
             <p className="no-results">{t.loadingText}</p>
           ) : expertBookings.length > 0 ? (
@@ -1233,6 +1387,11 @@ function App() {
                     {b.date} — {formatTimeLabel(b.time)}
                   </p>
                   {b.note && <p className="review-comment">{b.note}</p>}
+                  {b.hasMaterial === 'no' && b.materialComment && (
+                    <p className="review-comment">
+                      <i className="ti ti-book-off"></i> {t.materialCommentLabel} {b.materialComment}
+                    </p>
+                  )}
 
                   {b.status === 'confirmed' && b.meetingLink && (
                     <p className="review-comment">
@@ -1318,6 +1477,13 @@ function App() {
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
               />
+              <p
+                className="hero-login-link"
+                style={{ textAlign: language === 'ar' ? 'left' : 'right', cursor: 'pointer' }}
+                onClick={handleForgotPassword}
+              >
+                {t.forgotPassword}
+              </p>
             </div>
 
             <button className="btn-primary full-width" onClick={handleLogin}>

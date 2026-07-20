@@ -1293,3 +1293,41 @@ html, body, #root {
     max-width: 100%;
   }
 }
+/* ============================================= */
+/* ======== DELETE ACCOUNT BUTTON (2nd) ========= */
+/* ============================================= */
+
+.home-header {
+  gap: 14px;
+}
+
+/* لما يكون فيه أكثر من زر ثابت فوق بعض بنفس الجهة، نرتبهم بشكل عمودي */
+.my-bookings-btn + .my-bookings-btn {
+  top: 72px;
+}
+
+/* ============================================= */
+/* ===== MATERIAL YES/NO QUESTION BUTTONS ====== */
+/* ============================================= */
+
+.booking-form .form-group .booking-actions button {
+  padding: 12px;
+  font-size: 14px;
+}
+
+/* ============================================= */
+/* ============ MOBILE: STACK FIXED BUTTONS ===== */
+/* ============================================= */
+
+@media (max-width: 600px) {
+  .my-bookings-btn + .my-bookings-btn {
+    top: 58px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .my-bookings-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
