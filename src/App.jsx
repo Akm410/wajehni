@@ -1018,11 +1018,17 @@ function App() {
 
             <div className="form-group">
               <label>{t.field}</label>
-              <input
-                type="text"
+              <select
                 value={expertData.field}
                 onChange={(e) => handleExpertChange('field', e.target.value)}
-              />
+              >
+                <option value="">{t.selectTimePlaceholder === 'اختر الوقت' ? 'اختر القسم' : 'Select category'}</option>
+                {categories.map((cat, i) => (
+                  <option key={i} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group">
