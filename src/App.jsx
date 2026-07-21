@@ -66,9 +66,12 @@ function App() {
   const [meetingLinkInput, setMeetingLinkInput] = useState('')
   const [sendingConfirmation, setSendingConfirmation] = useState(false)
 
-  // 🆕 سؤال المادة العلمية بنموذج الحجز
-  const [hasMaterial, setHasMaterial] = useState(null) // null | 'yes' | 'no'
+  const [hasMaterial, setHasMaterial] = useState(null)
   const [materialComment, setMaterialComment] = useState('')
+
+  const [profileData, setProfileData] = useState(null)
+  const [profileType, setProfileType] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
 
   const text = {
     ar: {
@@ -174,6 +177,9 @@ function App() {
       materialCommentLabel: 'وش الأشياء اللي تحتاجها؟',
       materialCommentPlaceholder: 'اكتب هنا وش تحتاج من الخبير يجهزه أو يساعدك فيه...',
       materialRequiredMissing: 'الرجاء تحديد إذا عندك المادة العلمية أو لا',
+      myProfile: 'الملف الشخصي',
+      profileNoData: 'ما قدرنا نجيب بيانات حسابك',
+      accountType: 'نوع الحساب',
     },
     en: {
       appName: 'Wajehni',
@@ -278,6 +284,9 @@ function App() {
       materialCommentLabel: 'What do you need?',
       materialCommentPlaceholder: 'Write what you need the expert to prepare or help you with...',
       materialRequiredMissing: 'Please specify whether you have the study material or not',
+      myProfile: 'My Profile',
+      profileNoData: "We couldn't fetch your account data",
+      accountType: 'Account Type',
     },
   }
 
@@ -462,7 +471,6 @@ function App() {
     }
   }
 
-  // 🆕 نسيت كلمة المرور
   const handleForgotPassword = async () => {
     if (!isValidEmail(loginEmail)) {
       alert(t.forgotPasswordNeedEmail)
@@ -477,7 +485,6 @@ function App() {
     }
   }
 
-  // 🆕 حذف الحساب
   const handleDeleteAccount = async () => {
     if (!auth.currentUser) return
     const confirmed = window.confirm(t.deleteAccountConfirm)
@@ -508,6 +515,38 @@ function App() {
       } else {
         alert(t.genericAuthError)
       }
+    }
+  }
+
+  const fetchProfile = async () => {
+    if (!auth.currentUser) {
+      setScreen('login')
+      return
+    }
+    setLoadingProfile(true)
+    setProfileData(null)
+    setProfileType(null)
+    try {
+      const uid = auth.currentUser.uid
+
+      const seekerQ = query(collection(db, 'seekers'), where('uid', '==', uid))
+      const seekerSnap = await getDocs(seekerQ)
+      if (!seekerSnap.empty) {
+        setProfileData(seekerSnap.docs[0].data())
+        setProfileType('seeker')
+        return
+      }
+
+      const expertQ = query(collection(db, 'experts'), where('uid', '==', uid))
+      const expertSnap = await getDocs(expertQ)
+      if (!expertSnap.empty) {
+        setProfileData(expertSnap.docs[0].data())
+        setProfileType('expert')
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingProfile(false)
     }
   }
 
@@ -954,18 +993,20 @@ function App() {
             <span
               className="my-bookings-btn"
               onClick={() => {
+                setScreen('profile')
+                fetchProfile()
+              }}
+            >
+              <i className="ti ti-user-circle"></i> {t.myProfile}
+            </span>
+            <span
+              className="my-bookings-btn"
+              onClick={() => {
                 setScreen('myBookings')
                 fetchMyBookings()
               }}
             >
               <i className="ti ti-calendar-event"></i> {t.myBookings}
-            </span>
-            <span
-              className="my-bookings-btn"
-              style={{ borderColor: '#f87171', color: '#f87171', background: 'rgba(248,113,113,0.1)' }}
-              onClick={handleDeleteAccount}
-            >
-              <i className="ti ti-trash"></i> {t.deleteAccount}
             </span>
           </div>
 
@@ -1033,6 +1074,116 @@ function App() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {screen === 'profile' && (
+        <div className="all-specialties-screen">
+          <button className="back-btn" onClick={() => setScreen(profileType === 'expert' ? 'expertDashboard' : 'home')}>
+            <i className="ti ti-arrow-right"></i> {t.back}
+          </button>
+
+          <h2>{t.myProfile}</h2>
+
+          {loadingProfile ? (
+            <p className="no-results">{t.loadingText}</p>
+          ) : profileData ? (
+            <div className="expert-detail-screen" style={{ width: '100%', maxWidth: '480px' }}>
+              <div className="expert-detail-header">
+                <div className="expert-avatar large">
+                  <i className="ti ti-user"></i>
+                </div>
+                <h2>{profileData.name}</h2>
+                <p className="expert-field">
+                  {profileType === 'expert' ? t.expert : t.seeker}
+                </p>
+              </div>
+
+              <div className="category-list">
+                {profileType === 'seeker' && (
+                  <>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.university}</span>
+                      </div>
+                      <p className="review-comment">{profileData.university || '—'}</p>
+                    </div>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.major}</span>
+                      </div>
+                      <p className="review-comment">{profileData.major || '—'}</p>
+                    </div>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.gradYear}</span>
+                      </div>
+                      <p className="review-comment">{profileData.gradYear || '—'}</p>
+                    </div>
+                  </>
+                )}
+
+                {profileType === 'expert' && (
+                  <>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.company}</span>
+                      </div>
+                      <p className="review-comment">{profileData.company || '—'}</p>
+                    </div>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.jobTitle}</span>
+                      </div>
+                      <p className="review-comment">{profileData.jobTitle || '—'}</p>
+                    </div>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.experience}</span>
+                      </div>
+                      <p className="review-comment">{profileData.experience || '—'}</p>
+                    </div>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.field}</span>
+                      </div>
+                      <p className="review-comment">{profileData.field || '—'}</p>
+                    </div>
+                    <div className="review-card">
+                      <div className="review-header">
+                        <span className="review-name">{t.bio}</span>
+                      </div>
+                      <p className="review-comment">{profileData.bio || '—'}</p>
+                    </div>
+                  </>
+                )}
+
+                <div className="review-card">
+                  <div className="review-header">
+                    <span className="review-name">{t.email}</span>
+                  </div>
+                  <p className="review-comment" dir="ltr" style={{ textAlign: 'right' }}>
+                    {profileData.email || '—'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                className="btn-secondary full-width"
+                style={{
+                  marginTop: '20px',
+                  borderColor: '#f87171',
+                  color: '#f87171',
+                  background: 'rgba(248,113,113,0.08)',
+                }}
+                onClick={handleDeleteAccount}
+              >
+                <i className="ti ti-trash"></i> {t.deleteAccount}
+              </button>
+            </div>
+          ) : (
+            <p className="no-results">{t.profileNoData}</p>
+          )}
         </div>
       )}
 
@@ -1219,7 +1370,6 @@ function App() {
                 </div>
               </div>
 
-              {/* 🆕 سؤال المادة العلمية */}
               <div className="form-group">
                 <label>{t.hasMaterialQuestion}</label>
                 <div className="booking-actions" style={{ marginTop: 0 }}>
@@ -1350,20 +1500,18 @@ function App() {
 
           <h2>{t.expertDashboardTitle}</h2>
 
-          <span
-            className="my-bookings-btn"
-            style={{
-              position: 'static',
-              display: 'inline-flex',
-              marginBottom: '20px',
-              borderColor: '#f87171',
-              color: '#f87171',
-              background: 'rgba(248,113,113,0.1)',
-            }}
-            onClick={handleDeleteAccount}
-          >
-            <i className="ti ti-trash"></i> {t.deleteAccount}
-          </span>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+            <span
+              className="my-bookings-btn"
+              style={{ position: 'static', display: 'inline-flex' }}
+              onClick={() => {
+                setScreen('profile')
+                fetchProfile()
+              }}
+            >
+              <i className="ti ti-user-circle"></i> {t.myProfile}
+            </span>
+          </div>
 
           {loadingExpertBookings ? (
             <p className="no-results">{t.loadingText}</p>
