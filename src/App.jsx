@@ -73,6 +73,11 @@ function App() {
   const [profileType, setProfileType] = useState(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
 
+  // 🆕 تعديل حقول الملف الشخصي
+  const [editingField, setEditingField] = useState(null)
+  const [editValue, setEditValue] = useState('')
+  const [savingField, setSavingField] = useState(false)
+
   const text = {
     ar: {
       appName: 'وجهني',
@@ -180,6 +185,8 @@ function App() {
       myProfile: 'الملف الشخصي',
       profileNoData: 'ما قدرنا نجيب بيانات حسابك',
       accountType: 'نوع الحساب',
+      save: 'حفظ',
+      emailEditNote: 'ملاحظة: تعديل الإيميل هنا يغيّر بس الإيميل المعروض بملفك، ما يغيّر إيميل تسجيل الدخول.',
     },
     en: {
       appName: 'Wajehni',
@@ -287,6 +294,8 @@ function App() {
       myProfile: 'My Profile',
       profileNoData: "We couldn't fetch your account data",
       accountType: 'Account Type',
+      save: 'Save',
+      emailEditNote: 'Note: editing email here only changes the email shown on your profile, not your login email.',
     },
   }
 
@@ -518,6 +527,7 @@ function App() {
     }
   }
 
+  // 🆕 يجيب بيانات المستخدم مع رقم المستند (docId) عشان نقدر نعدله
   const fetchProfile = async () => {
     if (!auth.currentUser) {
       setScreen('login')
@@ -532,7 +542,7 @@ function App() {
       const seekerQ = query(collection(db, 'seekers'), where('uid', '==', uid))
       const seekerSnap = await getDocs(seekerQ)
       if (!seekerSnap.empty) {
-        setProfileData(seekerSnap.docs[0].data())
+        setProfileData({ ...seekerSnap.docs[0].data(), _docId: seekerSnap.docs[0].id })
         setProfileType('seeker')
         return
       }
@@ -540,13 +550,42 @@ function App() {
       const expertQ = query(collection(db, 'experts'), where('uid', '==', uid))
       const expertSnap = await getDocs(expertQ)
       if (!expertSnap.empty) {
-        setProfileData(expertSnap.docs[0].data())
+        setProfileData({ ...expertSnap.docs[0].data(), _docId: expertSnap.docs[0].id })
         setProfileType('expert')
       }
     } catch (err) {
       console.error(err)
     } finally {
       setLoadingProfile(false)
+    }
+  }
+
+  // 🆕 بداية تعديل حقل معين
+  const startEditField = (field, currentValue) => {
+    setEditingField(field)
+    setEditValue(currentValue || '')
+  }
+
+  const cancelEditField = () => {
+    setEditingField(null)
+    setEditValue('')
+  }
+
+  // 🆕 حفظ التعديل بقاعدة البيانات
+  const saveEditField = async (field) => {
+    if (!profileData || !profileData._docId || !profileType) return
+    setSavingField(true)
+    try {
+      const collectionName = profileType === 'seeker' ? 'seekers' : 'experts'
+      await updateDoc(doc(db, collectionName, profileData._docId), { [field]: editValue })
+      setProfileData((prev) => ({ ...prev, [field]: editValue }))
+      setEditingField(null)
+      setEditValue('')
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
+    } finally {
+      setSavingField(false)
     }
   }
 
@@ -711,6 +750,54 @@ function App() {
       setLoadingBookings(false)
     }
   }
+
+  // 🆕 مكوّن مساعد يرسم حقل قابل للتعديل داخل صفحة الملف الشخصي
+  const renderEditableField = (label, field, value, note) => (
+    <div className="review-card" key={field}>
+      <div className="review-header">
+        <span className="review-name">{label}</span>
+        {editingField !== field && (
+          <i
+            className="ti ti-pencil"
+            style={{ cursor: 'pointer', color: '#8a5bff', fontSize: '17px' }}
+            onClick={() => startEditField(field, value)}
+          ></i>
+        )}
+      </div>
+
+      {editingField === field ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.05)',
+              color: 'white',
+              fontSize: '14px',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+          {note && <p className="otp-hint" style={{ margin: 0 }}>{note}</p>}
+          <div className="booking-actions" style={{ marginTop: 0 }}>
+            <button className="btn-secondary" onClick={cancelEditField} disabled={savingField}>
+              {t.cancelConfirm}
+            </button>
+            <button className="btn-primary" onClick={() => saveEditField(field)} disabled={savingField}>
+              {t.save}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="review-comment">{value || '—'}</p>
+      )}
+    </div>
+  )
 
   return (
     <div className="app-container" dir={language === 'ar' ? 'rtl' : 'ltr'}>
@@ -1079,7 +1166,13 @@ function App() {
 
       {screen === 'profile' && (
         <div className="all-specialties-screen">
-          <button className="back-btn" onClick={() => setScreen(profileType === 'expert' ? 'expertDashboard' : 'home')}>
+          <button
+            className="back-btn"
+            onClick={() => {
+              setEditingField(null)
+              setScreen(profileType === 'expert' ? 'expertDashboard' : 'home')
+            }}
+          >
             <i className="ti ti-arrow-right"></i> {t.back}
           </button>
 
@@ -1100,72 +1193,27 @@ function App() {
               </div>
 
               <div className="category-list">
+                {renderEditableField(t.name, 'name', profileData.name)}
+
                 {profileType === 'seeker' && (
                   <>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.university}</span>
-                      </div>
-                      <p className="review-comment">{profileData.university || '—'}</p>
-                    </div>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.major}</span>
-                      </div>
-                      <p className="review-comment">{profileData.major || '—'}</p>
-                    </div>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.gradYear}</span>
-                      </div>
-                      <p className="review-comment">{profileData.gradYear || '—'}</p>
-                    </div>
+                    {renderEditableField(t.university, 'university', profileData.university)}
+                    {renderEditableField(t.major, 'major', profileData.major)}
+                    {renderEditableField(t.gradYear, 'gradYear', profileData.gradYear)}
                   </>
                 )}
 
                 {profileType === 'expert' && (
                   <>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.company}</span>
-                      </div>
-                      <p className="review-comment">{profileData.company || '—'}</p>
-                    </div>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.jobTitle}</span>
-                      </div>
-                      <p className="review-comment">{profileData.jobTitle || '—'}</p>
-                    </div>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.experience}</span>
-                      </div>
-                      <p className="review-comment">{profileData.experience || '—'}</p>
-                    </div>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.field}</span>
-                      </div>
-                      <p className="review-comment">{profileData.field || '—'}</p>
-                    </div>
-                    <div className="review-card">
-                      <div className="review-header">
-                        <span className="review-name">{t.bio}</span>
-                      </div>
-                      <p className="review-comment">{profileData.bio || '—'}</p>
-                    </div>
+                    {renderEditableField(t.company, 'company', profileData.company)}
+                    {renderEditableField(t.jobTitle, 'jobTitle', profileData.jobTitle)}
+                    {renderEditableField(t.experience, 'experience', profileData.experience)}
+                    {renderEditableField(t.field, 'field', profileData.field)}
+                    {renderEditableField(t.bio, 'bio', profileData.bio)}
                   </>
                 )}
 
-                <div className="review-card">
-                  <div className="review-header">
-                    <span className="review-name">{t.email}</span>
-                  </div>
-                  <p className="review-comment" dir="ltr" style={{ textAlign: 'right' }}>
-                    {profileData.email || '—'}
-                  </p>
-                </div>
+                {renderEditableField(t.email, 'email', profileData.email, t.emailEditNote)}
               </div>
 
               <button
