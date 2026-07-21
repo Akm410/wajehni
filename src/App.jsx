@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import emailjs from '@emailjs/browser'
 import {
@@ -29,6 +29,10 @@ function App() {
   const [specialtySearch, setSpecialtySearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [selectedExpert, setSelectedExpert] = useState(null)
+
+  // 🆕 الخبراء الحقيقيين المعتمدين
+  const [realExperts, setRealExperts] = useState([])
+  const [loadingExperts, setLoadingExperts] = useState(false)
 
   const [studentData, setStudentData] = useState({
     name: '',
@@ -73,7 +77,6 @@ function App() {
   const [profileType, setProfileType] = useState(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
 
-  // 🆕 تعديل حقول الملف الشخصي
   const [editingField, setEditingField] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [savingField, setSavingField] = useState(false)
@@ -301,42 +304,6 @@ function App() {
 
   const t = text[language]
 
-  const mockExperts = [
-    {
-      name: 'أبو داحم',
-      field: 'إدارة الأعمال',
-      rating: 4.9,
-      sessions: 32,
-      bio: 'خبرة 12 سنة في إدارة الأعمال والمشاريع، عملت مع شركات كبرى في السعودية. أساعدك تفهم سوق العمل وتجهز نفسك صح للمقابلات.',
-      reviews: [
-        { name: 'سلطان', rating: 5, comment: 'ساعدني كثير في تجهيز نفسي للمقابلة، شرح واضح ومباشر.' },
-        { name: 'نوف', rating: 5, comment: 'خبرة حقيقية، أعطاني نصائح عملية مب بس نظرية.' },
-      ],
-    },
-    {
-      name: 'الحب أبو خلود',
-      field: 'هندسة برمجيات',
-      rating: 4.8,
-      sessions: 45,
-      bio: 'مهندس برمجيات بخبرة 8 سنوات، عملت في شركات تقنية محلية وعالمية. أقدر أساعدك في تطوير مهاراتك التقنية ومراجعة السيرة الذاتية.',
-      reviews: [
-        { name: 'عبدالله', rating: 5, comment: 'جلسة ممتازة، وضح لي أشياء كثير كانت غامضة عندي.' },
-        { name: 'ريم', rating: 4, comment: 'مفيد جداً، بس ودي الجلسة تطول شوي أكثر.' },
-      ],
-    },
-    {
-      name: 'الحب حصحص',
-      field: 'تسويق رقمي',
-      rating: 4.7,
-      sessions: 28,
-      bio: 'متخصصة في التسويق الرقمي وإدارة المحتوى، عملت مع عدة علامات تجارية سعودية. أحب أساعد الشباب يدخلون المجال بثقة.',
-      reviews: [
-        { name: 'فهد', rating: 5, comment: 'أعطتني خطة واضحة أبدأ فيها بالتسويق الرقمي.' },
-        { name: 'لمى', rating: 4, comment: 'شرح زين ومنظم.' },
-      ],
-    },
-  ]
-
   const categories = [
     { icon: 'ti-device-laptop', name: language === 'ar' ? 'حاسب وتقنية معلومات' : 'Computer & IT' },
     { icon: 'ti-settings', name: language === 'ar' ? 'الهندسة' : 'Engineering' },
@@ -368,7 +335,12 @@ function App() {
     cat.name.toLowerCase().includes(specialtySearch.toLowerCase())
   )
 
-  const expertsForCategory = selectedCategory ? mockExperts : []
+  // 🆕 الخبراء الحقيقيين حسب التخصص المختار (مطابقة نصية بسيطة)
+  const expertsForCategory = selectedCategory
+    ? realExperts.filter(
+        (exp) => exp.field && exp.field.trim().toLowerCase().includes(selectedCategory.name.toLowerCase())
+      )
+    : []
 
   const handleStudentChange = (field, value) => {
     setStudentData({ ...studentData, [field]: value })
@@ -527,7 +499,6 @@ function App() {
     }
   }
 
-  // 🆕 يجيب بيانات المستخدم مع رقم المستند (docId) عشان نقدر نعدله
   const fetchProfile = async () => {
     if (!auth.currentUser) {
       setScreen('login')
@@ -560,7 +531,6 @@ function App() {
     }
   }
 
-  // 🆕 بداية تعديل حقل معين
   const startEditField = (field, currentValue) => {
     setEditingField(field)
     setEditValue(currentValue || '')
@@ -571,7 +541,6 @@ function App() {
     setEditValue('')
   }
 
-  // 🆕 حفظ التعديل بقاعدة البيانات
   const saveEditField = async (field) => {
     if (!profileData || !profileData._docId || !profileType) return
     setSavingField(true)
@@ -588,6 +557,25 @@ function App() {
       setSavingField(false)
     }
   }
+
+  // 🆕 يجيب الخبراء المعتمدين فقط
+  const fetchApprovedExperts = async () => {
+    setLoadingExperts(true)
+    try {
+      const q = query(collection(db, 'experts'), where('status', '==', 'approved'))
+      const snap = await getDocs(q)
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setRealExperts(list)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingExperts(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchApprovedExperts()
+  }, [])
 
   const fetchExpertBookings = async (expertName) => {
     setLoadingExpertBookings(true)
@@ -751,7 +739,6 @@ function App() {
     }
   }
 
-  // 🆕 مكوّن مساعد يرسم حقل قابل للتعديل داخل صفحة الملف الشخصي
   const renderEditableField = (label, field, value, note) => (
     <div className="review-card" key={field}>
       <div className="review-header">
@@ -796,6 +783,37 @@ function App() {
       ) : (
         <p className="review-comment">{value || '—'}</p>
       )}
+    </div>
+  )
+
+  // 🆕 كرت خبير حقيقي (بدون rating/sessions وهمية)
+  const renderExpertCard = (exp) => (
+    <div
+      className="expert-card"
+      key={exp.id}
+      onClick={() => {
+        setSelectedExpert(exp)
+        setScreen('expertDetail')
+      }}
+      style={{ cursor: 'pointer' }}
+    >
+      <div className="expert-avatar">
+        <i className="ti ti-user"></i>
+      </div>
+      <h4>{exp.name}</h4>
+      <p className="expert-field">{exp.jobTitle || exp.field}</p>
+      <div className="expert-meta">
+        {exp.company && (
+          <span>
+            <i className="ti ti-building"></i> {exp.company}
+          </span>
+        )}
+        {exp.experience && (
+          <span>
+            <i className="ti ti-briefcase"></i> {exp.experience}
+          </span>
+        )}
+      </div>
     </div>
   )
 
@@ -1102,29 +1120,13 @@ function App() {
               <h3>{t.topExperts}</h3>
               <span>{t.viewAll}</span>
             </div>
-            <div className="experts-grid">
-              {mockExperts.map((exp, i) => (
-                <div
-                  className="expert-card"
-                  key={i}
-                  onClick={() => {
-                    setSelectedExpert(exp)
-                    setScreen('expertDetail')
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="expert-avatar">
-                    <i className="ti ti-user"></i>
-                  </div>
-                  <h4>{exp.name}</h4>
-                  <p className="expert-field">{exp.field}</p>
-                  <div className="expert-meta">
-                    <span><i className="ti ti-star-filled"></i> {exp.rating}</span>
-                    <span>{exp.sessions} {t.sessions}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {loadingExperts ? (
+              <p className="no-results">{t.loadingText}</p>
+            ) : realExperts.length > 0 ? (
+              <div className="experts-grid">{realExperts.map((exp) => renderExpertCard(exp))}</div>
+            ) : (
+              <p className="no-results">{t.noExpertsYet}</p>
+            )}
           </div>
 
           <div className="home-section">
@@ -1289,38 +1291,7 @@ function App() {
           <h2>{t.expertsIn} {selectedCategory.name}</h2>
 
           {expertsForCategory.length > 0 ? (
-            <div className="experts-grid">
-              {expertsForCategory.map((exp, i) => (
-                <div className="expert-card" key={i}>
-                  <div
-                    onClick={() => {
-                      setSelectedExpert(exp)
-                      setScreen('expertDetail')
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="expert-avatar">
-                      <i className="ti ti-user"></i>
-                    </div>
-                    <h4>{exp.name}</h4>
-                    <p className="expert-field">{exp.field}</p>
-                    <div className="expert-meta">
-                      <span><i className="ti ti-star-filled"></i> {exp.rating}</span>
-                      <span>{exp.sessions} {t.sessions}</span>
-                    </div>
-                  </div>
-                  <button
-                    className="btn-primary full-width small"
-                    onClick={() => {
-                      setSelectedExpert(exp)
-                      setScreen('expertDetail')
-                    }}
-                  >
-                    {t.bookSession}
-                  </button>
-                </div>
-              ))}
-            </div>
+            <div className="experts-grid">{expertsForCategory.map((exp) => renderExpertCard(exp))}</div>
           ) : (
             <p className="no-results">{t.noExpertsYet}</p>
           )}
@@ -1350,10 +1321,18 @@ function App() {
               <i className="ti ti-user"></i>
             </div>
             <h2>{selectedExpert.name}</h2>
-            <p className="expert-field">{selectedExpert.field}</p>
+            <p className="expert-field">{selectedExpert.jobTitle || selectedExpert.field}</p>
             <div className="expert-meta">
-              <span><i className="ti ti-star-filled"></i> {selectedExpert.rating}</span>
-              <span>{selectedExpert.sessions} {t.sessions}</span>
+              {selectedExpert.company && (
+                <span>
+                  <i className="ti ti-building"></i> {selectedExpert.company}
+                </span>
+              )}
+              {selectedExpert.experience && (
+                <span>
+                  <i className="ti ti-briefcase"></i> {selectedExpert.experience}
+                </span>
+              )}
             </div>
           </div>
 
@@ -1477,20 +1456,22 @@ function App() {
             </button>
           )}
 
-          <div className="reviews-section">
-            <h3>{t.reviewsTitle}</h3>
-            {selectedExpert.reviews.map((review, i) => (
-              <div className="review-card" key={i}>
-                <div className="review-header">
-                  <span className="review-name">{review.name}</span>
-                  <span className="review-rating">
-                    <i className="ti ti-star-filled"></i> {review.rating}
-                  </span>
+          {selectedExpert.reviews && selectedExpert.reviews.length > 0 && (
+            <div className="reviews-section">
+              <h3>{t.reviewsTitle}</h3>
+              {selectedExpert.reviews.map((review, i) => (
+                <div className="review-card" key={i}>
+                  <div className="review-header">
+                    <span className="review-name">{review.name}</span>
+                    <span className="review-rating">
+                      <i className="ti ti-star-filled"></i> {review.rating}
+                    </span>
+                  </div>
+                  <p className="review-comment">{review.comment}</p>
                 </div>
-                <p className="review-comment">{review.comment}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
