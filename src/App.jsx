@@ -30,9 +30,17 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [selectedExpert, setSelectedExpert] = useState(null)
 
-  // 🆕 الخبراء الحقيقيين المعتمدين
   const [realExperts, setRealExperts] = useState([])
   const [loadingExperts, setLoadingExperts] = useState(false)
+
+  // 🆕 تقييمات
+  const [expertRatingsMap, setExpertRatingsMap] = useState({}) // { expertName: { avg, count } }
+  const [expertReviews, setExpertReviews] = useState([])
+  const [loadingReviews, setLoadingReviews] = useState(false)
+  const [ratingBookingId, setRatingBookingId] = useState(null)
+  const [ratingValue, setRatingValue] = useState(0)
+  const [ratingCommentInput, setRatingCommentInput] = useState('')
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   const [studentData, setStudentData] = useState({
     name: '',
@@ -190,6 +198,16 @@ function App() {
       accountType: 'نوع الحساب',
       save: 'حفظ',
       emailEditNote: 'ملاحظة: تعديل الإيميل هنا يغيّر بس الإيميل المعروض بملفك، ما يغيّر إيميل تسجيل الدخول.',
+      rateSession: 'قيّم الجلسة',
+      yourRatingLabel: 'تقييمك',
+      ratingCommentLabel: 'تعليق (اختياري)',
+      ratingCommentPlaceholder: 'شاركنا رأيك بالجلسة...',
+      submitRating: 'إرسال التقييم',
+      yourRatingSubmittedLabel: 'تقييمك:',
+      noReviewsYet: 'لا توجد تقييمات بعد',
+      ratingRequiredMissing: 'الرجاء اختيار عدد النجوم قبل الإرسال',
+      anonymousReviewer: 'مستخدم',
+      reviewsCount: 'تقييم',
     },
     en: {
       appName: 'Wajehni',
@@ -299,6 +317,16 @@ function App() {
       accountType: 'Account Type',
       save: 'Save',
       emailEditNote: 'Note: editing email here only changes the email shown on your profile, not your login email.',
+      rateSession: 'Rate Session',
+      yourRatingLabel: 'Your Rating',
+      ratingCommentLabel: 'Comment (optional)',
+      ratingCommentPlaceholder: 'Share your thoughts about the session...',
+      submitRating: 'Submit Rating',
+      yourRatingSubmittedLabel: 'Your rating:',
+      noReviewsYet: 'No reviews yet',
+      ratingRequiredMissing: 'Please select a star rating before submitting',
+      anonymousReviewer: 'User',
+      reviewsCount: 'reviews',
     },
   }
 
@@ -339,7 +367,6 @@ function App() {
     cat.name.toLowerCase().includes(specialtySearch.toLowerCase())
   )
 
-  // 🆕 الخبراء الحقيقيين حسب التخصص المختار (مطابقة نصية بسيطة)
   const expertsForCategory = selectedCategory
     ? realExperts.filter(
         (exp) => exp.field && exp.field.trim().toLowerCase().includes(selectedCategory.name.toLowerCase())
@@ -562,7 +589,6 @@ function App() {
     }
   }
 
-  // 🆕 يجيب الخبراء المعتمدين فقط
   const fetchApprovedExperts = async () => {
     setLoadingExperts(true)
     try {
@@ -577,9 +603,56 @@ function App() {
     }
   }
 
+  // 🆕 يجيب كل الحجوزات المقيّمة ويحسب متوسط كل خبير
+  const fetchAllRatings = async () => {
+    try {
+      const q = query(collection(db, 'bookings'), where('rating', '>', 0))
+      const snap = await getDocs(q)
+      const map = {}
+      snap.docs.forEach((d) => {
+        const data = d.data()
+        if (!map[data.expertName]) {
+          map[data.expertName] = { total: 0, count: 0 }
+        }
+        map[data.expertName].total += data.rating
+        map[data.expertName].count += 1
+      })
+      const finalMap = {}
+      Object.keys(map).forEach((name) => {
+        finalMap[name] = {
+          avg: (map[name].total / map[name].count).toFixed(1),
+          count: map[name].count,
+        }
+      })
+      setExpertRatingsMap(finalMap)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   useEffect(() => {
     fetchApprovedExperts()
+    fetchAllRatings()
   }, [])
+
+  // 🆕 يجيب تقييمات خبير معين لعرضها بصفحة تفاصيله
+  const fetchExpertReviews = async (expertName) => {
+    setLoadingReviews(true)
+    setExpertReviews([])
+    try {
+      const q = query(collection(db, 'bookings'), where('expertName', '==', expertName))
+      const snap = await getDocs(q)
+      const list = snap.docs
+        .map((d) => d.data())
+        .filter((d) => d.rating)
+        .sort((a, b) => (b.ratedAt?.seconds || 0) - (a.ratedAt?.seconds || 0))
+      setExpertReviews(list)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingReviews(false)
+    }
+  }
 
   const fetchExpertBookings = async (expertName) => {
     setLoadingExpertBookings(true)
@@ -743,6 +816,51 @@ function App() {
     }
   }
 
+  // 🆕 يبدأ عملية تقييم حجز معين
+  const startRating = (bookingId) => {
+    setRatingBookingId(bookingId)
+    setRatingValue(0)
+    setRatingCommentInput('')
+  }
+
+  const cancelRating = () => {
+    setRatingBookingId(null)
+    setRatingValue(0)
+    setRatingCommentInput('')
+  }
+
+  // 🆕 يحفظ التقييم بالحجز نفسه
+  const submitRating = async (booking) => {
+    if (ratingValue === 0) {
+      alert(t.ratingRequiredMissing)
+      return
+    }
+    setSubmittingRating(true)
+    try {
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        rating: ratingValue,
+        ratingComment: ratingCommentInput.trim(),
+        ratedAt: serverTimestamp(),
+      })
+      setMyBookings((prev) =>
+        prev.map((b) =>
+          b.id === booking.id
+            ? { ...b, rating: ratingValue, ratingComment: ratingCommentInput.trim() }
+            : b
+        )
+      )
+      setRatingBookingId(null)
+      setRatingValue(0)
+      setRatingCommentInput('')
+      fetchAllRatings()
+    } catch (err) {
+      console.error(err)
+      alert(t.genericAuthError)
+    } finally {
+      setSubmittingRating(false)
+    }
+  }
+
   const renderEditableField = (label, field, value, note) => (
     <div className="review-card" key={field}>
       <div className="review-header">
@@ -790,36 +908,66 @@ function App() {
     </div>
   )
 
-  // 🆕 كرت خبير حقيقي (بدون rating/sessions وهمية)
-  const renderExpertCard = (exp) => (
-    <div
-      className="expert-card"
-      key={exp.id}
-      onClick={() => {
-        setSelectedExpert(exp)
-        setScreen('expertDetail')
-      }}
-      style={{ cursor: 'pointer' }}
-    >
-      <div className="expert-avatar">
-        <i className="ti ti-user"></i>
-      </div>
-      <h4>{exp.name}</h4>
-      <p className="expert-field">{exp.jobTitle || exp.field}</p>
-      <div className="expert-meta">
-        {exp.company && (
-          <span>
-            <i className="ti ti-building"></i> {exp.company}
-          </span>
-        )}
-        {exp.experience && (
-          <span>
-            <i className="ti ti-briefcase"></i> {exp.experience}
-          </span>
-        )}
-      </div>
+  // 🆕 صفوف النجوم القابلة للضغط
+const renderStarPicker = () => (
+    <div style={{ display: 'flex', gap: '8px', fontSize: '34px', direction: 'ltr' }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span
+          key={star}
+          style={{
+            color: star <= ratingValue ? '#ffb800' : '#555',
+            cursor: 'pointer',
+            transition: '0.15s',
+            lineHeight: 1,
+            display: 'inline-block',
+          }}
+          onClick={() => setRatingValue(star)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.15)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)'
+          }}
+        >
+          ★
+        </span>
+      ))}
     </div>
   )
+
+  const renderExpertCard = (exp) => {
+    const ratingInfo = expertRatingsMap[exp.name]
+    return (
+      <div
+        className="expert-card"
+        key={exp.id}
+        onClick={() => {
+          setSelectedExpert(exp)
+          setScreen('expertDetail')
+          fetchExpertReviews(exp.name)
+        }}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="expert-avatar">
+          <i className="ti ti-user"></i>
+        </div>
+        <h4>{exp.name}</h4>
+        <p className="expert-field">{exp.jobTitle || exp.field}</p>
+        <div className="expert-meta">
+          {ratingInfo && (
+            <span>
+              ★ {ratingInfo.avg} ({ratingInfo.count})
+            </span>
+          )}
+          {exp.company && (
+            <span>
+              <i className="ti ti-building"></i> {exp.company}
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-container" dir={language === 'ar' ? 'rtl' : 'ltr'}>
@@ -1026,7 +1174,7 @@ function App() {
                 value={expertData.field}
                 onChange={(e) => handleExpertChange('field', e.target.value)}
               >
-                <option value="">{t.selectTimePlaceholder === 'اختر الوقت' ? 'اختر القسم' : 'Select category'}</option>
+                <option value="">{language === 'ar' ? 'اختر القسم' : 'Select category'}</option>
                 {categories.map((cat, i) => (
                   <option key={i} value={cat.name}>
                     {cat.name}
@@ -1333,6 +1481,13 @@ function App() {
             <h2>{selectedExpert.name}</h2>
             <p className="expert-field">{selectedExpert.jobTitle || selectedExpert.field}</p>
             <div className="expert-meta">
+              {expertRatingsMap[selectedExpert.name] && (
+                <span>
+                  ★
+                  {expertRatingsMap[selectedExpert.name].avg} (
+                  {expertRatingsMap[selectedExpert.name].count} {t.reviewsCount})
+                </span>
+              )}
               {selectedExpert.company && (
                 <span>
                   <i className="ti ti-building"></i> {selectedExpert.company}
@@ -1466,22 +1621,30 @@ function App() {
             </button>
           )}
 
-          {selectedExpert.reviews && selectedExpert.reviews.length > 0 && (
-            <div className="reviews-section">
-              <h3>{t.reviewsTitle}</h3>
-              {selectedExpert.reviews.map((review, i) => (
+          <div className="reviews-section">
+            <h3>{t.reviewsTitle}</h3>
+            {loadingReviews ? (
+              <p className="no-results">{t.loadingText}</p>
+            ) : expertReviews.length > 0 ? (
+              expertReviews.map((review, i) => (
                 <div className="review-card" key={i}>
                   <div className="review-header">
-                    <span className="review-name">{review.name}</span>
-                    <span className="review-rating">
-                      <i className="ti ti-star-filled"></i> {review.rating}
+                    <span className="review-name">{t.anonymousReviewer}</span>
+                    <span className="review-rating" style={{ direction: 'ltr' }}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span key={s} style={{ color: s <= review.rating ? '#ffb800' : '#555' }}>
+                          ★
+                        </span>
+                      ))}
                     </span>
                   </div>
-                  <p className="review-comment">{review.comment}</p>
+                  {review.ratingComment && <p className="review-comment">{review.ratingComment}</p>}
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <p className="no-results">{t.noReviewsYet}</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -1520,6 +1683,52 @@ function App() {
                       <a href={b.meetingLink} target="_blank" rel="noreferrer">
                         {b.meetingLink}
                       </a>
+                    </p>
+                  )}
+
+                  {b.status === 'confirmed' && !b.rating && ratingBookingId !== b.id && (
+                    <button
+                      className="btn-secondary full-width small"
+                      onClick={() => startRating(b.id)}
+                    >
+                      <i className="ti ti-star"></i> {t.rateSession}
+                    </button>
+                  )}
+
+                  {b.status === 'confirmed' && ratingBookingId === b.id && (
+                    <div className="form-group" style={{ marginTop: '10px' }}>
+                      <label>{t.yourRatingLabel}</label>
+                      {renderStarPicker()}
+                      <textarea
+                        rows="2"
+                        placeholder={t.ratingCommentPlaceholder}
+                        value={ratingCommentInput}
+                        onChange={(e) => setRatingCommentInput(e.target.value)}
+                        style={{ marginTop: '10px' }}
+                      ></textarea>
+                      <div className="booking-actions">
+                        <button className="btn-secondary" onClick={cancelRating} disabled={submittingRating}>
+                          {t.cancelConfirm}
+                        </button>
+                        <button
+                          className="btn-primary"
+                          onClick={() => submitRating(b)}
+                          disabled={submittingRating}
+                        >
+                          {t.submitRating}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {b.rating && (
+                    <p className="review-comment" style={{ direction: 'ltr', textAlign: 'right' }}>
+                      {t.yourRatingSubmittedLabel}{' '}
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span key={s} style={{ color: s <= b.rating ? '#ffb800' : '#555' }}>
+                          ★
+                        </span>
+                      ))}
                     </p>
                   )}
                 </div>
@@ -1583,6 +1792,17 @@ function App() {
                   {b.status === 'confirmed' && b.meetingLink && (
                     <p className="review-comment">
                       <i className="ti ti-video"></i> {t.joinMeeting}: {b.meetingLink}
+                    </p>
+                  )}
+
+                  {b.rating && (
+                    <p className="review-comment" style={{ direction: 'ltr', textAlign: 'right' }}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span key={s} style={{ color: s <= b.rating ? '#ffb800' : '#555' }}>
+                          ★
+                        </span>
+                      ))}
+                      {b.ratingComment && <span> — {b.ratingComment}</span>}
                     </p>
                   )}
 
