@@ -19,7 +19,7 @@ import {
   deleteDoc,
 } from './firebase'
 
-const EMAILJS_SERVICE_ID = 'service_4jvccxa'
+const EMAILJS_SERVICE_ID = 'service_teu54dp'
 const EMAILJS_TEMPLATE_ID = 'template_fney8hc'
 const EMAILJS_PUBLIC_KEY = 'lSxqFPVHZNjayS9op'
 
