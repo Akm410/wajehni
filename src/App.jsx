@@ -305,16 +305,20 @@ function App() {
   const t = text[language]
 
   const categories = [
-    { icon: 'ti-device-laptop', name: language === 'ar' ? 'حاسب وتقنية معلومات' : 'Computer & IT' },
-    { icon: 'ti-settings', name: language === 'ar' ? 'الهندسة' : 'Engineering' },
-    { icon: 'ti-briefcase', name: language === 'ar' ? 'إدارة وأعمال' : 'Business & Management' },
-    { icon: 'ti-stethoscope', name: language === 'ar' ? 'طب وصحة' : 'Medical & Health' },
-    { icon: 'ti-scale', name: language === 'ar' ? 'قانون' : 'Law' },
-    { icon: 'ti-palette', name: language === 'ar' ? 'إعلام وتصميم' : 'Media & Design' },
-    { icon: 'ti-school', name: language === 'ar' ? 'تعليم وتدريب' : 'Education & Training' },
-    { icon: 'ti-users-group', name: language === 'ar' ? 'علوم اجتماعية وإنسانية' : 'Social Sciences' },
-    { icon: 'ti-flask', name: language === 'ar' ? 'علوم طبيعية' : 'Natural Sciences' },
-    { icon: 'ti-plane', name: language === 'ar' ? 'سياحة وضيافة' : 'Tourism & Hospitality' },
+    { icon: 'ti-report-money', name: language === 'ar' ? 'قطاع المالية' : 'Finance Sector' },
+    { icon: 'ti-device-laptop', name: language === 'ar' ? 'قطاع تقنية المعلومات' : 'IT Sector' },
+    { icon: 'ti-clipboard-list', name: language === 'ar' ? 'إدارة المشاريع' : 'Project Management' },
+    { icon: 'ti-target-arrow', name: language === 'ar' ? 'إدارة الاستراتيجية والأداء' : 'Strategy & Performance Management' },
+    { icon: 'ti-speakerphone', name: language === 'ar' ? 'إدارة التسويق' : 'Marketing Management' },
+    { icon: 'ti-shopping-cart', name: language === 'ar' ? 'إدارة المشتريات والعقود' : 'Procurement & Contracts Management' },
+    { icon: 'ti-award', name: language === 'ar' ? 'إدارة الجودة والتميز المؤسسي' : 'Quality & Institutional Excellence' },
+    { icon: 'ti-shield-check', name: language === 'ar' ? 'إدارة المخاطر والالتزام والحوكمة' : 'Risk, Compliance & Governance' },
+    { icon: 'ti-scale', name: language === 'ar' ? 'الإدارة القانونية' : 'Legal Management' },
+    { icon: 'ti-trending-up', name: language === 'ar' ? 'إدارة تطوير الأعمال' : 'Business Development Management' },
+    { icon: 'ti-users-group', name: language === 'ar' ? 'إدارة الموارد البشرية' : 'Human Resources Management' },
+    { icon: 'ti-tags', name: language === 'ar' ? 'إدارة المبيعات' : 'Sales Management' },
+    { icon: 'ti-bulb', name: language === 'ar' ? 'ريادة الأعمال' : 'Entrepreneurship' },
+    { icon: 'ti-chart-dots', name: language === 'ar' ? 'تحليل البيانات وذكاء الأعمال' : 'Data Analytics & BI' },
   ]
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
